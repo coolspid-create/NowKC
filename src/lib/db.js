@@ -1,12 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const globalForPrisma = global;
 
-// Singleton pattern for Prisma in development
-let cachedPrisma = null;
-export function getDb() {
-  if (!cachedPrisma) {
-    cachedPrisma = new PrismaClient();
-  }
-  return cachedPrisma;
-}
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+export default prisma;

@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-const fs = require('fs');
-const path = require('path');
+import prisma from '@/lib/db';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(request) {
   try {
@@ -86,13 +84,13 @@ export async function GET(request) {
     const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
     const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
 
-    // === 4. Get last update time from data.csv ===
+    // === 4. Get last update time (Safe check for Vercel) ===
     let lastUpdated = null;
     try {
-      const stats = fs.statSync(path.join(process.cwd(), '..', 'data.csv'));
+      // Look for the database file mtime as aproxy for last update
+      const stats = fs.statSync(path.join(process.cwd(), 'prisma', 'dev.db'));
       lastUpdated = stats.mtime;
     } catch (e) {
-      // fallback to current time if file not found
       lastUpdated = new Date();
     }
 
