@@ -86,7 +86,7 @@ export default function Dashboard() {
 
   // Sunburst chart data from summary
   const { sunburstInner, sunburstOuter } = useMemo(() => {
-    if (!data) return { sunburstInner: [], sunburstOuter: [] };
+    if (!data || data.error) return { sunburstInner: [], sunburstOuter: [] };
     
     const inner = [];
     const outer = [];
@@ -101,7 +101,7 @@ export default function Dashboard() {
 
   // Handle drilldown data for Bar Chart and Treemap
   const currentChartData = useMemo(() => {
-    if (!data) return { nodes: [], total: 0 };
+    if (!data || data.error) return { nodes: [], total: 0 };
     let currentNodes = data.hierarchy;
     let total = data.grandTotal;
 
