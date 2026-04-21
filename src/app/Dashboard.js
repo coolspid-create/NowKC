@@ -138,16 +138,17 @@ export default function Dashboard() {
     }
   };
 
-  if (loading || !data) {
+  // Show full loading spinner ONLY initially or when data completely crashes
+  if (!data && loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
         <div className="pulse" style={{ width: '12px', height: '12px', background: 'var(--accent-electric)', borderRadius: '50%' }}></div>
-        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>데이터를 불러오는 중입니다...</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>초기 데이터를 불러오는 중입니다...</div>
       </div>
     );
   }
 
-  if (data.error) {
+  if (data?.error) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ color: 'red', fontSize: '1rem', fontWeight: 600 }}>데이터 로딩 오류 발생</div>
@@ -174,9 +175,22 @@ export default function Dashboard() {
         ))}
       </nav>
 
-      {/* Summary Table */}
-      <section className="glass-card summary-section animate-slide-up stagger-1">
-        <h3 className="section-title">등록누계 현황</h3>
+      <div style={{ 
+        opacity: loading ? 0.4 : 1, 
+        transform: loading ? 'scale(0.99)' : 'scale(1)', 
+        transition: 'opacity 0.3s ease, transform 0.3s ease', 
+        pointerEvents: loading ? 'none' : 'auto',
+        position: 'relative'
+      }}>
+        {loading && (
+          <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+            <div className="pulse" style={{ width: '20px', height: '20px', background: 'var(--accent-electric)', borderRadius: '50%' }}></div>
+          </div>
+        )}
+
+        {/* Summary Table */}
+        <section className="glass-card summary-section animate-slide-up stagger-1">
+          <h3 className="section-title">등록누계 현황</h3>
         <div className="summary-layout">
           <div className="pie-area">
             <ResponsiveContainer width="100%" height={280}>
@@ -519,6 +533,7 @@ export default function Dashboard() {
         <h3 className="section-title">인증 건수 상위 품목 (Word Cloud)</h3>
         <p className="section-subtitle">마우스를 올리면 상세 정보를 확인할 수 있습니다</p>
         <WordCloud words={wordcloudData} height={480} />
+      </div>
       </div>
     </>
   );
