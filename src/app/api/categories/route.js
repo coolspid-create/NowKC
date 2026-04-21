@@ -84,14 +84,18 @@ export async function GET(request) {
     const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
     const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
 
-    // === 4. Get last update time (Safe check for Vercel) ===
-    let lastUpdated = null;
+    // === 4. Get last update time (Query max recordDate from DB) ===
+    let lastUpdated = new Date();
     try {
-      // Look for the database file mtime as aproxy for last update
-      const stats = fs.statSync(path.join(process.cwd(), 'prisma', 'dev.db'));
-      lastUpdated = stats.mtime;
+      const latestRecord = await prisma.dataRecord.findFirst({
+        orderBy: { recordDate: 'desc' },
+        select: { recordDate: true }
+      });
+      if (latestRecord) {
+        lastUpdated = latestRecord.recordDate;
+      }
     } catch (e) {
-      lastUpdated = new Date();
+      console.error('Failed to get last update date:', e);
     }
 
     return NextResponse.json({
