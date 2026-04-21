@@ -10,9 +10,14 @@ export default function Page() {
     <main className="dashboard-container">
       <header>
         <div className="logo">Now KC</div>
-        <div className="header-subtitle">
-          <span className="pulse"></span>
-          KC 안전인증 · 안전확인 실시간 통계 대시보드
+        <div className="header-right">
+          <div className="header-title">
+            <span className="pulse"></span>
+            KC 안전인증 · 안전확인 실시간 통계 대시보드
+          </div>
+          <div className="header-desc">
+            *본 자료는 2000년대 초반부터 SafetyKorea에 누적된 안전인증, 안전확인 데이터를 기반으로 하고 있습니다.
+          </div>
         </div>
       </header>
       <Dashboard />
