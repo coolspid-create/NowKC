@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model DataRecord {
+  id            String   @id @default(uuid())
+  majorCategory String   // 대분류: 전기용품, 생활용품, 어린이제품
+  certType      String   // 중분류: 안전인증, 안전확인
+  depth1        String   // 세분류
+  depth2        String   // 세세분류
+  depth3        String   // 세세세분류
+  count         Int
+  recordDate    DateTime
+
+  @@unique([majorCategory, certType, depth1, depth2, depth3, recordDate])
+}
