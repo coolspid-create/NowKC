@@ -62,14 +62,25 @@ export default function Dashboard() {
   }, [activeTab]);
 
   async function fetchData() {
-    setLoading(true);
-    const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}` : '';
-    const [catRes, wordRes] = await Promise.all([
-      fetch(`/api/categories${params}`).then(r => r.json()),
-      fetch(`/api/stats/wordcloud${params ? params : ''}`).then(r => r.json()),
-    ]);
-    if (catRes.success) setData(catRes.data);
-    if (wordRes.success) setWordcloudData(wordRes.data);
+    try {
+      const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}` : '';
+      const [catRes, wordRes] = await Promise.all([
+        fetch(`/api/categories${params}`).then(r => r.json()),
+        fetch(`/api/stats/wordcloud${params ? params : ''}`).then(r => r.json()),
+      ]);
+      
+      if (catRes.success) {
+        setData(catRes.data);
+      } else {
+        console.error("Categories error:", catRes.error);
+        setData({ error: catRes.error }); // Hack to break out of loading
+      }
+      
+      if (wordRes.success) setWordcloudData(wordRes.data);
+    } catch (e) {
+      console.error(e);
+      setData({ error: e.message });
+    }
     setLoading(false);
   }
 
@@ -132,6 +143,15 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
         <div className="pulse" style={{ width: '12px', height: '12px', background: 'var(--accent-electric)', borderRadius: '50%' }}></div>
         <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>데이터를 불러오는 중입니다...</div>
+      </div>
+    );
+  }
+
+  if (data.error) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ color: 'red', fontSize: '1rem', fontWeight: 600 }}>데이터 로딩 오류 발생</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{data.error}</div>
       </div>
     );
   }
