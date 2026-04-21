@@ -176,6 +176,9 @@ export default function Dashboard() {
       </nav>
 
       <div style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2.5rem',
         opacity: loading ? 0.4 : 1, 
         transform: loading ? 'scale(0.99)' : 'scale(1)', 
         transition: 'opacity 0.3s ease, transform 0.3s ease', 
