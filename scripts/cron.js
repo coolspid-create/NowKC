@@ -1,10 +1,10 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
 
-// Excludes weekends, runs at 09:00 system local time (Assuming server is in KST)
-console.log("⏱️  Local Cron started. Scheduling /api/cron/sync at 9:00 AM Mon-Fri...");
+// Runs at 10:30 AM system local time every day
+console.log("⏱️  Local Cron started. Scheduling /api/cron/sync at 10:30 AM every day...");
 
-cron.schedule('0 9 * * 1-5', async () => {
+cron.schedule('30 10 * * *', async () => {
   console.log(`\n[${new Date().toISOString()}] 🕒 Triggering daily dataset sync...`);
   try {
     const res = await fetch('http://localhost:3000/api/cron/sync');
