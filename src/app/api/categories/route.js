@@ -9,7 +9,21 @@ export async function GET(request) {
     const majorCategory = searchParams.get('major'); // 대분류 filter
     const certType = searchParams.get('cert');       // 중분류 filter
 
-    const where = {};
+    const latestRecord = await prisma.dataRecord.findFirst({
+      orderBy: { recordDate: 'desc' },
+      select: { recordDate: true }
+    });
+
+    if (!latestRecord) {
+      return NextResponse.json({
+        success: true,
+        data: { summary: [], hierarchy: [], grandTotal: 0, totalCertification: 0, totalConfirmation: 0, lastUpdated: null }
+      });
+    }
+
+    const latestDate = latestRecord.recordDate;
+
+    const where = { recordDate: latestDate };
     if (majorCategory) where.majorCategory = majorCategory;
     if (certType) where.certType = certType;
 

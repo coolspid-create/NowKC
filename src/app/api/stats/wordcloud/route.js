@@ -6,10 +6,19 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const majorCategory = searchParams.get('major');
 
-    const where = {};
+    const latestRecord = await prisma.dataRecord.findFirst({
+      orderBy: { recordDate: 'desc' },
+      select: { recordDate: true }
+    });
+
+    if (!latestRecord) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    const where = { recordDate: latestRecord.recordDate };
     if (majorCategory) where.majorCategory = majorCategory;
 
-    // Get all items matching the category
+    // Get all items matching the category and date
     const records = await prisma.dataRecord.findMany({
       where,
       orderBy: { recordDate: 'desc' }
