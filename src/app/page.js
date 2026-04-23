@@ -1,8 +1,8 @@
-import Dashboard from './Dashboard';
+import AppContainer from './AppContainer';
 
 export const metadata = {
-  title: 'Now KC - KC 안전인증 실시간 통계 대시보드',
-  description: 'KC 안전인증 및 안전확인 공공데이터를 기반으로 한 실시간 통계 대시보드. 전기용품, 생활용품, 어린이제품 인증 현황을 한눈에 파악합니다.',
+  title: 'Now KC - 통합 데이터 플랫폼',
+  description: 'KC 안전인증, 소비자위해정보, 태양광 공공데이터를 기반으로 한 실시간 통계 대시보드.',
 };
 
 export default function Page() {
@@ -13,14 +13,14 @@ export default function Page() {
         <div className="header-right">
           <div className="header-title">
             <span className="pulse"></span>
-            KC 안전인증 · 안전확인 실시간 통계 대시보드
+            Now KC 데이터 통합 플랫폼
           </div>
           <div className="header-desc">
-            *본 자료는 2000년대 초반부터 SafetyKorea에 누적된 안전인증, 안전확인 데이터를 기반으로 하고 있습니다.
+            *제품안전, 소비자위해정보, 태양광 데이터의 통합 분석 통계를 제공합니다.
           </div>
         </div>
       </header>
-      <Dashboard />
+      <AppContainer />
     </main>
   );
 }

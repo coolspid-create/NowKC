@@ -22,32 +22,32 @@ export async function GET(request) {
     
     const workbook = xlsx.read(buffer, { type: 'buffer' });
     
-    // Determine today's KST date in YY.MM.DD format
-    const now = new Date();
-    const kst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-    const yy = String(kst.getFullYear()).slice(-2);
-    const mm = String(kst.getMonth() + 1).padStart(2, '0');
-    const dd = String(kst.getDate()).padStart(2, '0');
-    const todaySheetName = `${yy}.${mm}.${dd}`;
-
-    console.log(`Checking for sheet: ${todaySheetName}`);
+    // Find all sheets that follow the YY.MM.DD pattern
+    const datePattern = /^\d{2}\.\d{2}\.\d{2}$/;
+    const dateSheets = workbook.SheetNames.filter(name => datePattern.test(name)).sort();
     
-    // Just in case today's sheet doesn't exist, we can fallback or gracefully stop
-    if (!workbook.SheetNames.includes(todaySheetName)) {
-      console.log(`⚠️ Sheet ${todaySheetName} not found. Skipping sync.`);
-      return NextResponse.json({ success: true, message: `Sheet ${todaySheetName} not found. Skipped.` });
+    if (dateSheets.length === 0) {
+      console.log('⚠️ No date sheets found in the workbook.');
+      return NextResponse.json({ success: false, message: 'No date sheets found.' });
     }
 
-    const sheet = workbook.Sheets[todaySheetName];
+    // Pick the latest sheet (last in sorted array)
+    const latestSheetName = dateSheets[dateSheets.length - 1];
+    console.log(`Using sheet: ${latestSheetName} (Latest available)`);
+
+    const sheet = workbook.Sheets[latestSheetName];
     const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
     
-    console.log(`📊 Parsed ${rows.length} rows for ${todaySheetName}.`);
+    console.log(`📊 Parsed ${rows.length} rows for ${latestSheetName}.`);
+
+    // Parse record date from the sheet name (YY.MM.DD)
+    const [yy, mm, dd] = latestSheetName.split('.').map(s => parseInt(s, 10));
+    const recordDate = new Date(2000 + yy, mm - 1, dd, 0, 0, 0, 0);
 
     let insertedCount = 0;
     let skippedCount = 0;
 
     for (const row of rows) {
-      const recordDateRaw = row['집계일시'];
       const rawCertType = row['인증유형'];
       const itemName = row['품목명'];
       const count = parseInt(row['총건수'], 10);
@@ -55,9 +55,6 @@ export async function GET(request) {
       if (!itemName || isNaN(count)) { skippedCount++; continue; }
 
       const { majorCategory, certType } = parseCertType(rawCertType);
-
-      // Floor recordDate to 00:00:00 of KST Date
-      let recordDate = new Date(kst.getFullYear(), kst.getMonth(), kst.getDate(), 0, 0, 0, 0);
 
       const parts = itemName.toString().split('>').map(s => s.trim());
       const depth1 = parts[0] || '';
@@ -101,7 +98,7 @@ export async function GET(request) {
     
     return NextResponse.json({ 
       success: true, 
-      message: `Sync complete for ${todaySheetName}. Inserted: ${insertedCount}, Skipped: ${skippedCount}`
+      message: `Sync complete for ${latestSheetName}. Inserted: ${insertedCount}, Skipped: ${skippedCount}`
     });
 
   } catch (error) {
