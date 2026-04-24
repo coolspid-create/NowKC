@@ -259,29 +259,39 @@ export default function RecallDashboard({ startDate, endDate }) {
           </ResponsiveContainer>
         </div>
 
-        <div className="glass-card chart-container">
+        <div className="glass-card chart-container" style={{ position: 'relative' }}>
           <h3 className="section-title">출처(국가)별 리콜 비중</h3>
-          <div className="summary-layout" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div className="pie-area" style={{ flex: 1 }}>
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={sourceData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} dataKey="count" nameKey="name" stroke="#fff" strokeWidth={2}>
-                    {sourceData.map((_, i) => <Cell key={i} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]}/>)}
-                  </Pie>
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload;
-                    const pct = stats.total_recalls > 0 ? ((d.count / stats.total_recalls) * 100).toFixed(1) : '0';
-                    return (
-                      <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
-                        <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{d.name}</div>
-                        <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{d.count}건 ({pct}%)</div>
-                      </div>
-                    );
-                  }}/>
-                </PieChart>
-              </ResponsiveContainer>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '320px' }}>
+            <div style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '10px', color: 'var(--text-muted)' }}>
+              Data: {stats?.total_recalls} recalls | {sourceData.length} sources
             </div>
+            <PieChart width={300} height={260}>
+              <Pie 
+                data={sourceData} 
+                cx="50%" cy="50%" 
+                outerRadius={90} 
+                dataKey="count" 
+                nameKey="name" 
+                stroke="#fff" 
+                strokeWidth={2}
+                animationDuration={500}
+              >
+                {sourceData.map((_, i) => (
+                  <Cell key={`cell-${i}`} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0].payload;
+                const pct = stats.total_recalls > 0 ? ((d.count / stats.total_recalls) * 100).toFixed(1) : '0';
+                return (
+                  <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{d.name}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{d.count}건 ({pct}%)</div>
+                  </div>
+                );
+              }}/>
+            </PieChart>
             <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', justifyContent:'center', marginTop:'0.5rem', padding: '0 1rem' }}>
               {sourceData.slice(0,8).map((s,i) => (
                 <span key={i} style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'0.75rem', color:'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: '20px' }}>
