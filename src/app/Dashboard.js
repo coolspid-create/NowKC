@@ -68,6 +68,14 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Independent dates for Recall tab
+  const [recallStartDate, setRecallStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [recallEndDate, setRecallEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+
   // Fetch available dates on mount
   useEffect(() => {
     fetch('/api/dates').then(r => r.json()).then(res => {
@@ -225,24 +233,39 @@ export default function Dashboard() {
           })}
         </nav>
         
-        {availableDates.length > 0 && (
+        {((activeTab !== 'RECALL' && availableDates.length > 0) || activeTab === 'RECALL') && (
           <div className="date-picker-group" style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간</span>
             <input 
-              type="date" value={startDate} onChange={e => setStartDate(e.target.value)} 
-              min={availableDates[0]} max={endDate} 
+              type="date" 
+              value={activeTab === 'RECALL' ? recallStartDate : startDate} 
+              onChange={e => activeTab === 'RECALL' ? setRecallStartDate(e.target.value) : setStartDate(e.target.value)} 
+              min={activeTab === 'RECALL' ? undefined : availableDates[0]} 
+              max={activeTab === 'RECALL' ? recallEndDate : endDate} 
               className="glass-input" 
               style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.7)', outline: 'none' }} 
             />
             <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>~</span>
             <input 
-              type="date" value={endDate} onChange={e => setEndDate(e.target.value)} 
-              min={startDate} max={availableDates[availableDates.length - 1]} 
+              type="date" 
+              value={activeTab === 'RECALL' ? recallEndDate : endDate} 
+              onChange={e => activeTab === 'RECALL' ? setRecallEndDate(e.target.value) : setEndDate(e.target.value)} 
+              min={activeTab === 'RECALL' ? recallStartDate : startDate} 
+              max={activeTab === 'RECALL' ? undefined : availableDates[availableDates.length - 1]} 
               className="glass-input" 
               style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.7)', outline: 'none' }} 
             />
             <button 
-              onClick={handleShowAllDates}
+              onClick={() => {
+                if (activeTab === 'RECALL') {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 365); // Default 'All' for recall as 1 year or something large
+                  setRecallStartDate(d.toISOString().slice(0, 10));
+                  setRecallEndDate(new Date().toISOString().slice(0, 10));
+                } else {
+                  handleShowAllDates();
+                }
+              }}
               style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, color: activeTab === 'RECALL' ? '#f97316' : 'var(--accent-electric)', background: activeTab === 'RECALL' ? 'rgba(249,115,22,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${activeTab === 'RECALL' ? '#f97316' : 'var(--accent-electric)'}`, borderRadius: '6px', cursor: 'pointer', marginLeft: '4px' }}
             >
               전체
@@ -255,7 +278,7 @@ export default function Dashboard() {
       </div>
 
       {activeTab === 'RECALL' ? (
-        <RecallDashboard startDate={startDate} endDate={endDate} />
+        <RecallDashboard startDate={recallStartDate} endDate={recallEndDate} />
       ) : (
       <div style={{ 
         display: 'flex',
