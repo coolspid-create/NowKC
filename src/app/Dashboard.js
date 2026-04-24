@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Treemap
+  PieChart, Pie, Cell, Treemap, AreaChart, Area, LineChart, Line, Legend
 } from 'recharts';
 import WordCloud from './components/WordCloud';
 import RecallDashboard from './RecallDashboard';
@@ -59,6 +59,7 @@ const PIE_COLORS = [
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [wordcloudData, setWordcloudData] = useState([]);
+  const [trendData, setTrendData] = useState({ cumulativeData: [], weeklyDelta: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [drilldownPath, setDrilldownPath] = useState([]); // Array of node names for drilling down
@@ -72,9 +73,10 @@ export default function Dashboard() {
   async function fetchData() {
     try {
       const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}` : '';
-      const [catRes, wordRes] = await Promise.all([
+      const [catRes, wordRes, trendRes] = await Promise.all([
         fetch(`/api/categories${params}`).then(r => r.json()),
         fetch(`/api/stats/wordcloud${params ? params : ''}`).then(r => r.json()),
+        fetch(`/api/stats/trends${params ? params : ''}`).then(r => r.json()),
       ]);
       
       if (catRes.success) {
@@ -85,6 +87,7 @@ export default function Dashboard() {
       }
       
       if (wordRes.success) setWordcloudData(wordRes.data);
+      if (trendRes.success) setTrendData(trendRes.data);
     } catch (e) {
       console.error(e);
       setData({ error: e.message });
@@ -326,6 +329,79 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Weekly Trends Section */}
+      {trendData.cumulativeData.length > 0 && (
+        <div className="charts-grid animate-slide-up stagger-1">
+          {/* 1. Stacked Area Chart (Cumulative Trends) */}
+          <div className="glass-card chart-container" style={{ gridColumn: '1 / -1' }}>
+            <h3 className="section-title">주간 인증 누계 추이</h3>
+            <p className="section-subtitle">전체 인증 규모 성장세 및 품목군 비중 변화</p>
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
+                  formatter={(value, name) => [value.toLocaleString() + '건', name]}
+                  labelStyle={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 500 }} />
+                {activeTab === 'ALL' || activeTab === '전기용품' ? <Area type="monotone" dataKey="전기용품" stackId="1" stroke="#3b82f6" fill="#93c5fd" /> : null}
+                {activeTab === 'ALL' || activeTab === '생활용품' ? <Area type="monotone" dataKey="생활용품" stackId="1" stroke="#10b981" fill="#6ee7b7" /> : null}
+                {activeTab === 'ALL' || activeTab === '어린이제품' ? <Area type="monotone" dataKey="어린이제품" stackId="1" stroke="#f59e0b" fill="#fcd34d" /> : null}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 2. Bar Chart (Weekly Delta / New Certifications) */}
+          <div className="glass-card chart-container">
+            <h3 className="section-title">주간 신규 인증 건수</h3>
+            <p className="section-subtitle">전주 대비 새로 추가된 인증 수량</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trendData.weeklyDelta.slice(1)} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
+                  formatter={(value, name) => [value.toLocaleString() + '건', name === 'totalDelta' ? '총 신규 건수' : name]}
+                  labelStyle={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                {activeTab === 'ALL' ? (
+                  <Bar dataKey="totalDelta" name="총 신규 건수" fill="#8b5cf6" radius={[4,4,0,0]} />
+                ) : (
+                  <Bar dataKey={activeTab} name={`${activeTab} 신규`} fill={activeTab === '전기용품' ? '#3b82f6' : activeTab === '생활용품' ? '#10b981' : '#f59e0b'} radius={[4,4,0,0]} />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 3. Line Chart (Category Growth Comparison) */}
+          <div className="glass-card chart-container">
+            <h3 className="section-title">품목별 성장 추이 비교</h3>
+            <p className="section-subtitle">품목군별 누적 건수 성장 속도 비교</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
+                  formatter={(value, name) => [value.toLocaleString() + '건', name]}
+                  labelStyle={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                {activeTab === 'ALL' || activeTab === '전기용품' ? <Line type="monotone" dataKey="전기용품" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} /> : null}
+                {activeTab === 'ALL' || activeTab === '생활용품' ? <Line type="monotone" dataKey="생활용품" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} /> : null}
+                {activeTab === 'ALL' || activeTab === '어린이제품' ? <Line type="monotone" dataKey="어린이제품" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} /> : null}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="overview-grid animate-slide-up stagger-2">
