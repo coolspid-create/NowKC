@@ -221,13 +221,7 @@ export default function RecallDashboard() {
           </div>
           <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>{sourceData.length}개국 출처</div>
         </div>
-        <div className="glass-card stat-card" style={{ borderBottom:'3px solid #3b82f6' }}>
-          <div className="stat-title">한국 관련 리콜</div>
-          <div className="stat-value" style={{ background:'linear-gradient(to right,#3b82f6,#1d4ed8)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
-            {stats.korea_relevance_count.toLocaleString()}
-          </div>
-          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>한국 시장 관련성</div>
-        </div>
+
         <div className="glass-card stat-card" style={{ borderBottom:'3px solid #ef4444' }}>
           <div className="stat-title">부상 보고</div>
           <div className="stat-value" style={{ background:'linear-gradient(to right,#ef4444,#dc2626)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
@@ -240,7 +234,7 @@ export default function RecallDashboard() {
           <div className="stat-value" style={{ background:'linear-gradient(to right,#7c3aed,#6d28d9)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
             {seriousPercent}%
           </div>
-          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>ISO 심각도 4-5 ({seriousCount}건)</div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>AI분석 심각도 4-5 ({seriousCount}건)</div>
         </div>
       </div>
 
@@ -381,7 +375,7 @@ export default function RecallDashboard() {
       {/* Row 3: Severity + Cross-tab Table */}
       <div className="charts-grid animate-slide-up stagger-5">
         <div className="glass-card chart-container" style={{ display:'flex', flexDirection:'column' }}>
-          <h3 className="section-title">심각도 분포</h3>
+          <h3 className="section-title">AI분석 심각도</h3>
           <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
