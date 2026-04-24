@@ -23,7 +23,9 @@ export async function GET(request) {
       });
     }
 
-    const endDate = endDateParam ? new Date(endDateParam + 'T00:00:00.000Z') : latestRecord.recordDate;
+    const endDate = (endDateParam && endDateParam.trim() !== '') 
+      ? new Date(endDateParam + 'T00:00:00.000Z') 
+      : latestRecord.recordDate;
     
     // Fetch end date records
     const whereEnd = { recordDate: endDate };
@@ -33,7 +35,7 @@ export async function GET(request) {
 
     let records = [];
 
-    if (startDateParam && startDateParam !== endDateParam) {
+    if (startDateParam && startDateParam.trim() !== '' && startDateParam !== endDateParam) {
       // Calculate delta
       const startDate = new Date(startDateParam + 'T00:00:00.000Z');
       const whereStart = { recordDate: startDate };

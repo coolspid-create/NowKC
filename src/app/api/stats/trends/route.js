@@ -13,10 +13,10 @@ export async function GET(request) {
       where.majorCategory = majorCategory;
     }
 
-    if (startDateParam || endDateParam) {
+    if ((startDateParam && startDateParam.trim() !== '') || (endDateParam && endDateParam.trim() !== '')) {
       where.recordDate = {};
-      if (startDateParam) where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
-      if (endDateParam) where.recordDate.lte = new Date(endDateParam + 'T23:59:59.999Z');
+      if (startDateParam && startDateParam.trim() !== '') where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
+      if (endDateParam && endDateParam.trim() !== '') where.recordDate.lte = new Date(endDateParam + 'T23:59:59.999Z');
     }
 
     // Group by recordDate and majorCategory

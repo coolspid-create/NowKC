@@ -226,7 +226,7 @@ export default function Dashboard() {
         </nav>
         
         {activeTab !== 'RECALL' && availableDates.length > 0 && (
-          <div className="date-picker-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
+          <div className="date-picker-group" style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간</span>
             <input 
               type="date" value={startDate} onChange={e => setStartDate(e.target.value)} 

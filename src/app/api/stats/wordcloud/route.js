@@ -17,7 +17,9 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const endDate = endDateParam ? new Date(endDateParam + 'T00:00:00.000Z') : latestRecord.recordDate;
+    const endDate = (endDateParam && endDateParam.trim() !== '') 
+      ? new Date(endDateParam + 'T00:00:00.000Z') 
+      : latestRecord.recordDate;
 
     const whereEnd = { recordDate: endDate };
     if (majorCategory) whereEnd.majorCategory = majorCategory;
@@ -25,7 +27,7 @@ export async function GET(request) {
 
     let records = [];
 
-    if (startDateParam && startDateParam !== endDateParam) {
+    if (startDateParam && startDateParam.trim() !== '' && startDateParam !== endDateParam) {
       const startDate = new Date(startDateParam + 'T00:00:00.000Z');
       const whereStart = { recordDate: startDate };
       if (majorCategory) whereStart.majorCategory = majorCategory;
