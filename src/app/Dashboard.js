@@ -71,7 +71,7 @@ export default function Dashboard() {
   // Independent dates for Recall tab
   const [recallStartDate, setRecallStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 30);
+    d.setFullYear(d.getFullYear() - 1);
     return d.toISOString().slice(0, 10);
   });
   const [recallEndDate, setRecallEndDate] = useState(() => new Date().toISOString().slice(0, 10));

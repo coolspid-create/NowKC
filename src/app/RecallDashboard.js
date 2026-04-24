@@ -103,42 +103,46 @@ export default function RecallDashboard({ startDate, endDate }) {
   const sourceData = useMemo(() => {
     if (!stats?.by_source) return [];
     return stats.by_source
-      .filter(s => s.count > 0)
       .map(s => ({
-        name: SOURCE_LABELS[s.source] || s.source, count: s.count, source: s.source
+        name: SOURCE_LABELS[s.source] || s.source, 
+        count: Number(s.count || 0), 
+        source: s.source
       }))
+      .filter(s => s.count > 0)
       .sort((a,b) => b.count - a.count);
   }, [stats]);
 
   const hfData = useMemo(() => {
     if (!stats?.by_hf_code) return [];
     return stats.by_hf_code
+      .map(d => ({ name: HF_CODE_LABELS[d.hf_code] || d.hf_code, count: Number(d.count || 0) }))
       .filter(d => d.count > 0)
-      .sort((a,b) => b.count - a.count).slice(0, 10)
-      .map(d => ({ name: HF_CODE_LABELS[d.hf_code] || d.hf_code, count: d.count }));
+      .sort((a,b) => b.count - a.count).slice(0, 10);
   }, [stats]);
 
   const dtData = useMemo(() => {
     if (!stats?.by_dt_code) return [];
     return stats.by_dt_code
+      .map(d => ({ name: DT_CODE_LABELS[d.dt_code] || d.dt_code, count: Number(d.count || 0) }))
       .filter(d => d.count > 0)
-      .sort((a,b) => b.count - a.count).slice(0, 10)
-      .map(d => ({ name: DT_CODE_LABELS[d.dt_code] || d.dt_code, count: d.count }));
+      .sort((a,b) => b.count - a.count).slice(0, 10);
   }, [stats]);
 
   const severityData = useMemo(() => {
     if (!stats?.by_severity) return [];
     return stats.by_severity
-      .filter(s => s.count > 0)
       .map(s => ({
         name: SEVERITY_LABELS[s.severity] || `Level ${s.severity}`,
-        value: s.count, severity: s.severity
-      }));
+        value: Number(s.count || 0), 
+        severity: s.severity
+      }))
+      .filter(s => s.value > 0);
   }, [stats]);
 
   const categoryData = useMemo(() => {
     if (!stats?.by_category_level2) return [];
     return stats.by_category_level2
+      .map(c => ({ ...c, count: Number(c.count || 0) }))
       .filter(c => c.count > 0)
       .sort((a,b) => b.count - a.count);
   }, [stats]);
