@@ -28,6 +28,42 @@ const TREEMAP_COLORS = [
   '#475569','#1e40af','#9333ea'
 ];
 
+const DT_CODE_LABELS = {
+  'DT.CHEMICAL.POISON': '화학적 중독',
+  'DT.ASPHYX.CHOKE': '질식 (삼킴)',
+  'DT.THERMAL.FIRE': '화재',
+  'DT.MECHANICAL.INJ': '물리적 부상',
+  'DT.BODY.DEATH': '사망',
+  'DT.MECHANICAL.FALL': '추락/넘어짐',
+  'DT.OTHER.NEARMI': '기타 아차사고',
+  'DT.THERMAL.BURN': '화상',
+  'DT.ASPHYX.STRANG': '끈 졸림',
+  'DT.ELECTRIC.SHOCK': '감전'
+};
+
+const HF_CODE_LABELS = {
+  'HF.H.CHEM.ETC': '기타 화학물질',
+  'HF.H.ELEC.OHT': '과열 (전기)',
+  'HF.H.ELEC.BAT': '배터리 결함',
+  'HF.H.PHY.FRAC': '파손/부서짐',
+  'HF.H.PHY.SMALL': '소형 부품 이탈',
+  'HF.H.ELEC': '전기적 결함',
+  'HF.H.PHY.CORD': '끈/줄 얽힘',
+  'HF.H.PHY.MAG': '자석',
+  'HF.H.PHY.SHARP': '날카로운 마감',
+  'HF.S.INFO': '표시사항 오류',
+  'HF.H.CHEM.HEAVY': '중금속',
+  'HF.H.CHEM.PHTH': '프탈레이트',
+  'HF.H.PHY': '물리적 결함',
+  'HF.H.CHEM.FORM': '폼알데하이드',
+  'HF.H.CHEM.LEAD': '납 성분',
+  'HF.H.ELEC.INS': '절연 불량',
+  'HF.H.ELEC.NPC': '감전 방지 미흡',
+  'HF.M.DES': '설계 결함',
+  'HF.S.NATL.DEF': '안전기준 미달',
+  'HF.UNKNOWN': '알 수 없음'
+};
+
 export default function RecallDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,11 +110,18 @@ export default function RecallDashboard() {
     }));
   }, [stats]);
 
-  const hazardData = useMemo(() => {
-    if (!stats?.by_hazard_type) return [];
-    return stats.by_hazard_type
-      .filter(h => h.hazard_type && h.hazard_type.length < 30)
-      .sort((a,b) => b.count - a.count).slice(0, 10);
+  const hfData = useMemo(() => {
+    if (!stats?.by_hf_code) return [];
+    return stats.by_hf_code
+      .sort((a,b) => b.count - a.count).slice(0, 10)
+      .map(d => ({ name: HF_CODE_LABELS[d.hf_code] || d.hf_code, count: d.count }));
+  }, [stats]);
+
+  const dtData = useMemo(() => {
+    if (!stats?.by_dt_code) return [];
+    return stats.by_dt_code
+      .sort((a,b) => b.count - a.count).slice(0, 10)
+      .map(d => ({ name: DT_CODE_LABELS[d.dt_code] || d.dt_code, count: d.count }));
   }, [stats]);
 
   const severityData = useMemo(() => {
@@ -92,6 +135,29 @@ export default function RecallDashboard() {
   const categoryData = useMemo(() => {
     if (!stats?.by_category_level2) return [];
     return stats.by_category_level2.sort((a,b) => b.count - a.count);
+  }, [stats]);
+
+  const productGroupTable = useMemo(() => {
+    if (!stats?.by_product_group_country) return { countries: [], data: {}, targetGroups: [] };
+    const pData = stats.by_product_group_country;
+    const targetGroups = ['전기용품', '생활용품', '어린이제품'];
+    const countrySet = new Set();
+    const dataByCountry = {};
+    
+    pData.forEach(d => {
+      if (targetGroups.includes(d.product_group)) {
+        countrySet.add(d.country);
+        if (!dataByCountry[d.country]) dataByCountry[d.country] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
+        dataByCountry[d.country][d.product_group] += d.count;
+      }
+    });
+
+    const countries = Array.from(countrySet).sort((a,b) => {
+      const aTotal = targetGroups.reduce((sum, g) => sum + dataByCountry[a][g], 0);
+      const bTotal = targetGroups.reduce((sum, g) => sum + dataByCountry[b][g], 0);
+      return bTotal - aTotal;
+    });
+    return { countries, data: dataByCountry, targetGroups };
   }, [stats]);
 
   if (loading) {
@@ -112,7 +178,8 @@ export default function RecallDashboard() {
     );
   }
 
-  const hazardChartHeight = Math.max(300, hazardData.length * 36 + 60);
+  const hfChartHeight = Math.max(300, hfData.length * 36 + 60);
+  const dtChartHeight = Math.max(300, dtData.length * 36 + 60);
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'2.5rem', opacity:loading?0.4:1, transition:'opacity 0.3s ease' }}>
@@ -241,15 +308,15 @@ export default function RecallDashboard() {
         </div>
       </div>
 
-      {/* Charts Row 2: Hazard Type + Severity */}
+      {/* Charts Row 2: Hazard Factor + Damage Type */}
       <div className="charts-grid animate-slide-up stagger-4">
         <div className="glass-card chart-container">
-          <h3 className="section-title">위해유형별 분포</h3>
-          <ResponsiveContainer width="100%" height={hazardChartHeight}>
-            <BarChart data={hazardData} layout="vertical" margin={{ left:20, right:30 }}>
+          <h3 className="section-title">위해요인 분포</h3>
+          <ResponsiveContainer width="100%" height={hfChartHeight}>
+            <BarChart data={hfData} layout="vertical" margin={{ left:20, right:30 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)"/>
               <XAxis type="number" tick={{ fill:'var(--text-secondary)', fontSize:12 }}/>
-              <YAxis dataKey="hazard_type" type="category" width={130} tick={{ fill:'var(--text-primary)', fontSize:11, fontWeight:300 }} interval={0}/>
+              <YAxis dataKey="name" type="category" width={110} tick={{ fill:'var(--text-primary)', fontSize:11, fontWeight:300 }} interval={0}/>
               <Tooltip content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 const v = payload[0].value;
@@ -261,18 +328,49 @@ export default function RecallDashboard() {
                   </div>
                 );
               }}/>
-              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#hazardGrad)"/>
+              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#hfGrad)"/>
               <defs>
-                <linearGradient id="hazardGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#f97316"/><stop offset="100%" stopColor="#ef4444"/>
+                <linearGradient id="hfGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#8b5cf6"/><stop offset="100%" stopColor="#ec4899"/>
                 </linearGradient>
               </defs>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
+        <div className="glass-card chart-container">
+          <h3 className="section-title">피해유형 분포</h3>
+          <ResponsiveContainer width="100%" height={dtChartHeight}>
+            <BarChart data={dtData} layout="vertical" margin={{ left:20, right:30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)"/>
+              <XAxis type="number" tick={{ fill:'var(--text-secondary)', fontSize:12 }}/>
+              <YAxis dataKey="name" type="category" width={110} tick={{ fill:'var(--text-primary)', fontSize:11, fontWeight:300 }} interval={0}/>
+              <Tooltip content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const v = payload[0].value;
+                const pct = stats.total_recalls > 0 ? ((v / stats.total_recalls) * 100).toFixed(1) : '0';
+                return (
+                  <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{label}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{v}건 ({pct}%)</div>
+                  </div>
+                );
+              }}/>
+              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#dtGrad)"/>
+              <defs>
+                <linearGradient id="dtGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#14b8a6"/><stop offset="100%" stopColor="#3b82f6"/>
+                </linearGradient>
+              </defs>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Row 3: Severity + Cross-tab Table */}
+      <div className="charts-grid animate-slide-up stagger-5">
         <div className="glass-card chart-container" style={{ display:'flex', flexDirection:'column' }}>
-          <h3 className="section-title">심각도 분포 (ISO 5665)</h3>
+          <h3 className="section-title">심각도 분포</h3>
           <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -301,6 +399,41 @@ export default function RecallDashboard() {
                 </span>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="glass-card chart-container">
+          <h3 className="section-title">국가 및 품목군별 리콜 현황</h3>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.9rem', textAlign:'center' }}>
+              <thead>
+                <tr style={{ borderBottom:'2px solid var(--border-color)', color:'var(--text-secondary)', fontWeight:600 }}>
+                  <th style={{ padding:'12px 8px', textAlign:'left' }}>국가</th>
+                  {productGroupTable.targetGroups.map(g => <th key={g} style={{ padding:'12px 8px' }}>{g}</th>)}
+                  <th style={{ padding:'12px 8px', color:'#f97316' }}>소계</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productGroupTable.countries.map(country => {
+                  const data = productGroupTable.data[country];
+                  const total = productGroupTable.targetGroups.reduce((s, g) => s + data[g], 0);
+                  return (
+                    <tr key={country} style={{ borderBottom:'1px solid var(--border-color)' }}>
+                      <td style={{ padding:'12px 8px', textAlign:'left', fontWeight:500, color:'var(--text-primary)' }}>{country}</td>
+                      {productGroupTable.targetGroups.map(g => (
+                        <td key={g} style={{ padding:'12px 8px', color: data[g] > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {data[g]}
+                        </td>
+                      ))}
+                      <td style={{ padding:'12px 8px', fontWeight:700, color:'#f97316' }}>{total}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {productGroupTable.countries.length === 0 && (
+              <div style={{ padding:'2rem', textAlign:'center', color:'var(--text-muted)' }}>데이터가 없습니다.</div>
+            )}
           </div>
         </div>
       </div>
