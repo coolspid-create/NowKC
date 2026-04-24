@@ -15,6 +15,7 @@ const MAIN_TABS = [
       </svg>
     ),
   },
+/*
   {
     key: 'consumer-hazard',
     label: '소비자위해정보',
@@ -26,6 +27,7 @@ const MAIN_TABS = [
       </svg>
     ),
   },
+*/
   {
     key: 'solar-power',
     label: '태양광',
@@ -67,7 +69,7 @@ export default function AppContainer() {
       {/* Content Area with animated transitions */}
       <div className="main-content-area">
         {activeMainTab === 'product-safety' && <Dashboard />}
-        {activeMainTab === 'consumer-hazard' && <ConsumerHazard />}
+        {/* {activeMainTab === 'consumer-hazard' && <ConsumerHazard />} */}
         {activeMainTab === 'solar-power' && <SolarPower />}
       </div>
     </>

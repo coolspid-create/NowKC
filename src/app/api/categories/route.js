@@ -27,44 +27,17 @@ export async function GET(request) {
       ? new Date(endDateParam + 'T00:00:00.000Z') 
       : latestRecord.recordDate;
     
-    // Fetch end date records
-    const whereEnd = { recordDate: endDate };
-    if (majorCategory) whereEnd.majorCategory = majorCategory;
-    if (certType) whereEnd.certType = certType;
-    const endRecords = await prisma.dataRecord.findMany({ where: whereEnd });
-
-    let records = [];
-
-    if (startDateParam && startDateParam.trim() !== '' && startDateParam !== endDateParam) {
-      // Calculate delta
-      const startDate = new Date(startDateParam + 'T00:00:00.000Z');
-      const whereStart = { recordDate: startDate };
-      if (majorCategory) whereStart.majorCategory = majorCategory;
-      if (certType) whereStart.certType = certType;
-      const startRecords = await prisma.dataRecord.findMany({ where: whereStart });
-
-      const deltaMap = {};
-      const getKey = (r) => `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2 || ''}|${r.depth3 || ''}`;
-
-      endRecords.forEach(r => {
-        const k = getKey(r);
-        deltaMap[k] = { ...r, count: r.count };
-      });
-
-      startRecords.forEach(r => {
-        const k = getKey(r);
-        if (deltaMap[k]) {
-          deltaMap[k].count -= r.count;
-        } else {
-          deltaMap[k] = { ...r, count: -r.count };
-        }
-      });
-
-      records = Object.values(deltaMap).filter(r => r.count > 0); // only positive deltas or all? Let's show all > 0
-    } else {
-      // Snapshot mode
-      records = endRecords;
+    const where = {};
+    if (majorCategory) where.majorCategory = majorCategory;
+    if (certType) where.certType = certType;
+    
+    if ((startDateParam && startDateParam.trim() !== '') || (endDateParam && endDateParam.trim() !== '')) {
+      where.recordDate = {};
+      if (startDateParam && startDateParam.trim() !== '') where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
+      if (endDateParam && endDateParam.trim() !== '') where.recordDate.lte = new Date(endDateParam + 'T23:59:59.999Z');
     }
+
+    const records = await prisma.dataRecord.findMany({ where });
 
     // === 1. Summary table: 대분류별 계/안전인증/안전확인 ===
     const summaryMap = {};
@@ -83,34 +56,29 @@ export async function GET(request) {
       confirmation: data['안전확인'] || 0,
     }));
 
-    // === 2. Hierarchy tree data for drilldown (Major > CertType > D1 > D2 > D3) ===
+    // === 2. Hierarchy tree data for drilldown ===
     const treeMap = {};
     records.forEach(r => {
-      if (r.count <= 0) return; // Pie charts shouldn't have negative
-      // Level 1: Major Category
+      if (r.count <= 0) return;
       const keyM = r.majorCategory;
       if (!treeMap[keyM]) treeMap[keyM] = { name: keyM, total: 0, children: {} };
       treeMap[keyM].total += r.count;
 
-      // Level 2: Cert Type
       const keyC = r.certType;
       if (!treeMap[keyM].children[keyC]) treeMap[keyM].children[keyC] = { name: keyC, total: 0, children: {} };
       treeMap[keyM].children[keyC].total += r.count;
 
-      // Level 3: Depth 1
       const key1 = r.depth1;
       if (!treeMap[keyM].children[keyC].children[key1])
         treeMap[keyM].children[keyC].children[key1] = { name: key1, total: 0, children: {} };
       treeMap[keyM].children[keyC].children[key1].total += r.count;
 
-      // Level 4: Depth 2
       if (r.depth2) {
         const key2 = r.depth2;
         if (!treeMap[keyM].children[keyC].children[key1].children[key2])
           treeMap[keyM].children[keyC].children[key1].children[key2] = { name: key2, total: 0, children: {} };
         treeMap[keyM].children[keyC].children[key1].children[key2].total += r.count;
 
-        // Level 5: Depth 3
         if (r.depth3) {
           const key3 = r.depth3;
           if (!treeMap[keyM].children[keyC].children[key1].children[key2].children[key3])
@@ -135,18 +103,17 @@ export async function GET(request) {
     const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
     const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
 
-    // === 4. Lifetime Totals (Latest Snapshot - independent of period) ===
-    const latestSnapshot = await prisma.dataRecord.groupBy({
+    // === 4. Lifetime Totals (Total sum of all records in DB) ===
+    const totalSnapshot = await prisma.dataRecord.groupBy({
       by: ['majorCategory'],
-      _sum: { count: true },
-      where: { recordDate: latestRecord.recordDate }
+      _sum: { count: true }
     });
 
     const lifetimeTotals = {
-      total: latestSnapshot.reduce((acc, curr) => acc + (curr._sum.count || 0), 0),
-      전기용품: latestSnapshot.find(s => s.majorCategory === '전기용품')?._sum.count || 0,
-      생활용품: latestSnapshot.find(s => s.majorCategory === '생활용품')?._sum.count || 0,
-      어린이제품: latestSnapshot.find(s => s.majorCategory === '어린이제품')?._sum.count || 0,
+      total: totalSnapshot.reduce((acc, curr) => acc + (curr._sum.count || 0), 0),
+      전기용품: totalSnapshot.find(s => s.majorCategory === '전기용품')?._sum.count || 0,
+      생활용품: totalSnapshot.find(s => s.majorCategory === '생활용품')?._sum.count || 0,
+      어린이제품: totalSnapshot.find(s => s.majorCategory === '어린이제품')?._sum.count || 0,
     };
 
     return NextResponse.json({
@@ -158,7 +125,7 @@ export async function GET(request) {
         totalCertification,
         totalConfirmation,
         lifetimeTotals,
-        lastUpdated: latestRecord.recordDate.toISOString()
+        lastUpdated: new Date().toISOString()
       }
     });
   } catch (error) {

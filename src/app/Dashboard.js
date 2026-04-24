@@ -81,18 +81,16 @@ export default function Dashboard() {
     fetch('/api/dates').then(r => r.json()).then(res => {
       if (res.success && res.data.length > 0) {
         setAvailableDates(res.data);
-        // Default to a 7-day period if possible, otherwise first to last
         const dates = res.data;
-        if (dates.length > 7) {
-          setStartDate(dates[dates.length - 8]);
-          setEndDate(dates[dates.length - 1]);
-        } else if (dates.length > 1) {
-          setStartDate(dates[0]);
-          setEndDate(dates[dates.length - 1]);
-        } else {
-          setStartDate(dates[0]);
-          setEndDate(dates[0]);
-        }
+        const latest = dates[dates.length - 1];
+        const lastMonth = new Date(latest);
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        const lastMonthStr = lastMonth.toISOString().slice(0, 10);
+        
+        // Default to 1 month ago if possible, otherwise earliest available
+        const defaultStart = dates.find(d => d >= lastMonthStr) || dates[0];
+        setStartDate(defaultStart);
+        setEndDate(latest);
       }
     }).catch(e => console.error("Dates fetch error:", e));
   }, []);
@@ -271,7 +269,7 @@ export default function Dashboard() {
               전체
             </button>
             <div style={{ position: 'absolute', bottom: '-18px', right: '4px', fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.8 }}>
-              {activeTab === 'RECALL' ? 'Recall Hub 수집 날짜 기준' : 'SafetyKorea 등록 날짜 기준'} 통계입니다.
+              {activeTab === 'RECALL' ? 'Recall Hub 수집 날짜 기준' : 'SafetyKorea 인증 날짜 기준'} 통계입니다.
             </div>
           </div>
         )}
@@ -308,7 +306,7 @@ export default function Dashboard() {
           }`
         }}>
           <h3 className="section-title" style={{ marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.1rem' }}>
-            {activeTab === 'ALL' ? '전체 인증 현황 (누계)' : `${activeTab} 인증 현황 (누계)`}
+            {activeTab === 'ALL' ? '전체 인증 현황 (2025년 이후)' : `${activeTab} 인증 현황 (2025년 이후)`}
           </h3>
           <div className="lifetime-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
             <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
@@ -333,7 +331,7 @@ export default function Dashboard() {
         {/* Summary Table */}
         <section className="glass-card summary-section animate-slide-up stagger-1">
           <h3 className="section-title">
-            {startDate && endDate && startDate !== endDate ? '기간 내 신규 등록 현황' : '등록누계 현황'}
+            {startDate && endDate && startDate !== endDate ? '기간 내 인증 내역 현황' : '전체 인증 내역 현황'}
           </h3>
         <div className="summary-layout">
           <div className="pie-area">

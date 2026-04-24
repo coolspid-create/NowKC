@@ -17,43 +17,16 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const endDate = (endDateParam && endDateParam.trim() !== '') 
-      ? new Date(endDateParam + 'T00:00:00.000Z') 
-      : latestRecord.recordDate;
-
-    const whereEnd = { recordDate: endDate };
-    if (majorCategory) whereEnd.majorCategory = majorCategory;
-    const endRecords = await prisma.dataRecord.findMany({ where: whereEnd });
-
-    let records = [];
-
-    if (startDateParam && startDateParam.trim() !== '' && startDateParam !== endDateParam) {
-      const startDate = new Date(startDateParam + 'T00:00:00.000Z');
-      const whereStart = { recordDate: startDate };
-      if (majorCategory) whereStart.majorCategory = majorCategory;
-      const startRecords = await prisma.dataRecord.findMany({ where: whereStart });
-
-      const deltaMap = {};
-      const getKey = (r) => `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2 || ''}|${r.depth3 || ''}`;
-
-      endRecords.forEach(r => {
-        const k = getKey(r);
-        deltaMap[k] = { ...r, count: r.count };
-      });
-
-      startRecords.forEach(r => {
-        const k = getKey(r);
-        if (deltaMap[k]) {
-          deltaMap[k].count -= r.count;
-        } else {
-          deltaMap[k] = { ...r, count: -r.count };
-        }
-      });
-
-      records = Object.values(deltaMap).filter(r => r.count > 0);
-    } else {
-      records = endRecords;
+    const where = {};
+    if (majorCategory) where.majorCategory = majorCategory;
+    
+    if ((startDateParam && startDateParam.trim() !== '') || (endDateParam && endDateParam.trim() !== '')) {
+      where.recordDate = {};
+      if (startDateParam && startDateParam.trim() !== '') where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
+      if (endDateParam && endDateParam.trim() !== '') where.recordDate.lte = new Date(endDateParam + 'T23:59:59.999Z');
     }
+
+    const records = await prisma.dataRecord.findMany({ where });
 
     const itemMap = {};
     records.forEach(r => {

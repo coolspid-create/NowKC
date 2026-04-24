@@ -1,112 +1,111 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
-import * as xlsx from 'xlsx';
+const API_KEY = '3d6d1a7f-3792-4eeb-9d75-b2f68a59ac38';
+const BASE_URL = 'http://www.safetykorea.kr/openapi/api/cert/certificationList.json';
 
-function parseCertType(rawCertType) {
-  const parts = rawCertType.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    const certType = parts[parts.length - 1]; // "안전인증" or "안전확인"
-    const majorCategory = parts.slice(0, parts.length - 1).join(' '); 
-    return { majorCategory, certType };
-  }
-  return { majorCategory: rawCertType, certType: '기타' };
+function parseMajor(certDiv) {
+  if (!certDiv) return '기타';
+  const parts = certDiv.split('>');
+  const target = parts.length > 1 ? parts[1] : parts[0];
+  
+  if (target.includes('전기용품')) return '전기용품';
+  if (target.includes('생활용품')) return '생활용품';
+  if (target.includes('어린이제품')) return '어린이제품';
+  
+  // Fallback to the first part
+  const first = parts[0];
+  if (first.includes('전기용품')) return '전기용품';
+  if (first.includes('생활용품')) return '생활용품';
+  if (first.includes('어린이제품')) return '어린이제품';
+  
+  return first.trim();
+}
+
+function parseCertType(certDiv) {
+  if (!certDiv) return '기타';
+  const parts = certDiv.split('>');
+  if (parts.length < 2) return '기타';
+  const typePart = parts[1].trim();
+  if (typePart.includes('안전인증')) return '안전인증';
+  if (typePart.includes('안전확인')) return '안전확인';
+  if (typePart.includes('공급자적합성')) return '공급자적합성';
+  return typePart;
 }
 
 export async function GET(request) {
   try {
-    console.log('🔄 Starting automated background sync process...');
+    console.log('🔄 Starting SafetyKorea API automated sync...');
 
-    const url = 'https://docs.google.com/spreadsheets/d/1LjxspbUmxGZJf5brnFwQusEqZpY6GVhXQRT7VkiFY6E/export?format=xlsx';
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
-    
-    const workbook = xlsx.read(buffer, { type: 'buffer' });
-    
-    // Find all sheets that follow the YY.MM.DD pattern
-    const datePattern = /^\d{2}\.\d{2}\.\d{2}$/;
-    const dateSheets = workbook.SheetNames.filter(name => datePattern.test(name)).sort();
-    
-    if (dateSheets.length === 0) {
-      console.log('⚠️ No date sheets found in the workbook.');
-      return NextResponse.json({ success: false, message: 'No date sheets found.' });
+    const latestRecord = await prisma.dataRecord.findFirst({
+      orderBy: { recordDate: 'desc' },
+      select: { recordDate: true }
+    });
+
+    let startDate = new Date();
+    if (latestRecord) {
+      startDate = new Date(latestRecord.recordDate);
+      startDate.setDate(startDate.getDate() + 1); // Start from the next day
+    } else {
+      startDate.setDate(startDate.getDate() - 1); // Default to yesterday if empty
     }
 
-    // Process all date sheets
-    console.log(`Found ${dateSheets.length} date sheets to sync.`);
-    
-    let totalInserted = 0;
-    let totalSkipped = 0;
+    const today = new Date();
+    let currentDate = new Date(startDate);
+    let totalNewRecords = 0;
+    let daysSynced = 0;
 
-    for (const sheetName of dateSheets) {
-      console.log(`Processing sheet: ${sheetName}`);
-      const sheet = workbook.Sheets[sheetName];
-      const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
-      
-      const [yy, mm, dd] = sheetName.split('.').map(s => parseInt(s, 10));
-      // Store as UTC midnight (e.g. 26.04.21 -> 2026-04-21T00:00:00Z)
-      const recordDate = new Date(Date.UTC(2000 + yy, mm - 1, dd));
+    while (currentDate <= today) {
+      const yyyy = currentDate.getFullYear();
+      const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}${mm}${dd}`;
 
-      let insertedCount = 0;
-      let skippedCount = 0;
+      console.log(`[Sync] Fetching for ${dateStr}...`);
+      const url = `${BASE_URL}?conditionKey=certDate&conditionValue=${dateStr}`;
+      const res = await fetch(url, { headers: { 'AuthKey': API_KEY } });
+      const result = await res.json();
 
-      for (const row of rows) {
-        const rawCertType = row['인증유형'];
-        const itemName = row['품목명'];
-        const count = parseInt(row['총건수'], 10);
+      if (result.resultCode === '2000' && result.resultData) {
+        const items = result.resultData;
+        const stats = {};
+        items.forEach(item => {
+          const major = parseMajor(item.certDiv);
+          const certType = parseCertType(item.certDiv);
+          const catParts = (item.categoryName || '').split('>').map(s => s.trim());
+          const d1 = catParts[0] || '미분류';
+          const d2 = catParts[1] || '';
+          const d3 = catParts[2] || '';
+          const key = `${major}|${certType}|${d1}|${d2}|${d3}`;
+          stats[key] = (stats[key] || 0) + 1;
+        });
 
-        if (!itemName || isNaN(count)) { skippedCount++; continue; }
+        const recordDate = new Date(currentDate);
+        recordDate.setUTCHours(0,0,0,0);
 
-        const { majorCategory, certType } = parseCertType(rawCertType);
-
-        const parts = itemName.toString().split('>').map(s => s.trim());
-        const depth1 = parts[0] || '';
-        const depth2 = parts[1] || '';
-        const depth3 = parts[2] || '';
-
-        if (!depth1) { skippedCount++; continue; }
-
-        try {
+        for (const [key, count] of Object.entries(stats)) {
+          const [major, type, d1, d2, d3] = key.split('|');
           await prisma.dataRecord.upsert({
             where: {
               majorCategory_certType_depth1_depth2_depth3_recordDate: {
-                majorCategory,
-                certType,
-                depth1,
-                depth2,
-                depth3,
-                recordDate,
+                majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3, recordDate
               }
             },
             update: { count },
-            create: {
-              majorCategory,
-              certType,
-              depth1,
-              depth2,
-              depth3,
-              count,
-              recordDate,
-            }
+            create: { majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3, count, recordDate }
           });
-          insertedCount++;
-        } catch (e) {
-          skippedCount++;
         }
+        totalNewRecords += items.length;
+        daysSynced++;
       }
-      console.log(`✅ ${sheetName} complete. Inserted: ${insertedCount}, Skipped: ${skippedCount}`);
-      totalInserted += insertedCount;
-      totalSkipped += skippedCount;
+      
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    console.log(`🎉 Full sync complete. Total Inserted: ${totalInserted}, Total Skipped: ${totalSkipped}`);
-    
     return NextResponse.json({ 
       success: true, 
-      message: `Full sync complete for ${dateSheets.length} sheets. Total Inserted: ${totalInserted}, Skipped: ${totalSkipped}`
+      message: `Sync complete. Synced ${daysSynced} days, Total ${totalNewRecords} new items.` 
     });
 
   } catch (error) {
-    console.error('Error during automated sync:', error);
+    console.error('API Sync Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
