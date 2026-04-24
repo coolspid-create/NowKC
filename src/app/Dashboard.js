@@ -306,7 +306,7 @@ export default function Dashboard() {
           }`
         }}>
           <h3 className="section-title" style={{ marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.1rem' }}>
-            {activeTab === 'ALL' ? '전체 인증 현황 (2025년 이후)' : `${activeTab} 인증 현황 (2025년 이후)`}
+            전체 인증 현황 (2025년 이후)
           </h3>
           <div className="lifetime-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
             <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
