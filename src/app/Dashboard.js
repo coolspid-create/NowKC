@@ -330,6 +330,28 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Stats Cards */}
+      <div className="overview-grid animate-slide-up stagger-1">
+        <div className="glass-card stat-card">
+          <div className="stat-title">총 인증/확인 건수</div>
+          <div className="stat-value">{data.grandTotal.toLocaleString()}</div>
+        </div>
+        <div className="glass-card stat-card stat-card-blue">
+          <div className="stat-title">안전인증</div>
+          <div className="stat-value">{data.totalCertification.toLocaleString()}</div>
+        </div>
+        <div className="glass-card stat-card stat-card-green">
+          <div className="stat-title">안전확인</div>
+          <div className="stat-value">{data.totalConfirmation.toLocaleString()}</div>
+        </div>
+        <div className="glass-card stat-card stat-card-grey">
+          <div className="stat-title">최종 업데이트</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem', marginTop: '0.5rem' }}>
+            {data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-'}
+          </div>
+        </div>
+      </div>
+
       {/* Weekly Trends Section */}
       {trendData.cumulativeData.length > 0 && (
         <div className="charts-grid animate-slide-up stagger-1">
@@ -341,7 +363,7 @@ export default function Dashboard() {
               <AreaChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis domain={['auto', 'auto']} tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
                   formatter={(value, name) => [value.toLocaleString() + '건', name]}
@@ -387,7 +409,7 @@ export default function Dashboard() {
               <LineChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis domain={['auto', 'auto']} tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
                   formatter={(value, name) => [value.toLocaleString() + '건', name]}
@@ -403,27 +425,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="overview-grid animate-slide-up stagger-2">
-        <div className="glass-card stat-card">
-          <div className="stat-title">총 인증/확인 건수</div>
-          <div className="stat-value">{data.grandTotal.toLocaleString()}</div>
-        </div>
-        <div className="glass-card stat-card stat-card-blue">
-          <div className="stat-title">안전인증</div>
-          <div className="stat-value">{data.totalCertification.toLocaleString()}</div>
-        </div>
-        <div className="glass-card stat-card stat-card-green">
-          <div className="stat-title">안전확인</div>
-          <div className="stat-value">{data.totalConfirmation.toLocaleString()}</div>
-        </div>
-        <div className="glass-card stat-card stat-card-grey">
-          <div className="stat-title">최종 업데이트</div>
-          <div className="stat-value" style={{ fontSize: '1.4rem', marginTop: '0.5rem' }}>
-            {data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-'}
-          </div>
-        </div>
-      </div>
 
       {/* Charts Grid */}
       <div className="charts-grid animate-slide-up stagger-3">
