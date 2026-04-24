@@ -1,0 +1,397 @@
+'use client';
+
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, AreaChart, Area, Treemap
+} from 'recharts';
+
+const SOURCE_LABELS = {
+  US_CPSC: '미국', EU: '유럽연합', AU: '호주', CA: '캐나다', CN: '중국',
+  EN: '영국', FR: '프랑스', GE: '독일', JP_METI: '일본(METI)',
+  JP_RECALLPLUS: '일본(Recall+)', NZ: '뉴질랜드', OECD: 'OECD', US_NHTSA: '미국(NHTSA)'
+};
+
+const SOURCE_COLORS = [
+  '#ef4444','#f97316','#f59e0b','#84cc16','#22c55e',
+  '#14b8a6','#06b6d4','#3b82f6','#6366f1','#8b5cf6',
+  '#a855f7','#d946ef','#ec4899'
+];
+
+const SEVERITY_COLORS = ['#22c55e','#84cc16','#f59e0b','#f97316','#ef4444'];
+const SEVERITY_LABELS = { 1: '매우 낮음', 2: '낮음', 3: '보통', 4: '높음', 5: '매우 높음' };
+
+const TREEMAP_COLORS = [
+  '#3b82f6','#6366f1','#8b5cf6','#ec4899','#ef4444',
+  '#f97316','#f59e0b','#22c55e','#14b8a6','#06b6d4',
+  '#0ea5e9','#a855f7','#d946ef','#84cc16','#64748b',
+  '#475569','#1e40af','#9333ea'
+];
+
+export default function RecallDashboard() {
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('all');
+
+  useEffect(() => { fetchData(); }, [period]);
+
+  async function fetchData() {
+    setLoading(true);
+    try {
+      let statsUrl = '/api/recall/stats';
+      if (period === '30d') {
+        const d = new Date(); d.setDate(d.getDate()-30);
+        statsUrl += `?date_from=${d.toISOString().slice(0,10)}`;
+      } else if (period === '90d') {
+        const d = new Date(); d.setDate(d.getDate()-90);
+        statsUrl += `?date_from=${d.toISOString().slice(0,10)}`;
+      }
+      const [sRes, rRes] = await Promise.all([
+        fetch(statsUrl).then(r=>r.json()),
+        fetch('/api/recall/recent?days=7&limit=20').then(r=>r.json()),
+      ]);
+      if (sRes.success) setStats(sRes.data);
+      if (rRes.success) setRecent(rRes.data);
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  }
+
+  const seriousCount = useMemo(() => {
+    if (!stats?.by_severity) return 0;
+    return stats.by_severity.filter(s => s.severity >= 4).reduce((a,b) => a+b.count, 0);
+  }, [stats]);
+
+  const seriousPercent = useMemo(() => {
+    if (!stats) return 0;
+    return stats.total_recalls > 0 ? ((seriousCount / stats.total_recalls) * 100).toFixed(0) : 0;
+  }, [stats, seriousCount]);
+
+  const monthlyData = useMemo(() => {
+    if (!stats?.by_month) return [];
+    return stats.by_month.map(m => ({ name: m.month.slice(2), count: m.count }));
+  }, [stats]);
+
+  const sourceData = useMemo(() => {
+    if (!stats?.by_source) return [];
+    return stats.by_source.map(s => ({
+      name: SOURCE_LABELS[s.source] || s.source, count: s.count, source: s.source
+    }));
+  }, [stats]);
+
+  const hazardData = useMemo(() => {
+    if (!stats?.by_hazard_type) return [];
+    return stats.by_hazard_type
+      .filter(h => h.hazard_type && h.hazard_type.length < 30)
+      .sort((a,b) => b.count - a.count).slice(0, 10);
+  }, [stats]);
+
+  const severityData = useMemo(() => {
+    if (!stats?.by_severity) return [];
+    return stats.by_severity.map(s => ({
+      name: SEVERITY_LABELS[s.severity] || `Level ${s.severity}`,
+      value: s.count, severity: s.severity
+    }));
+  }, [stats]);
+
+  const categoryData = useMemo(() => {
+    if (!stats?.by_category_level2) return [];
+    return stats.by_category_level2.sort((a,b) => b.count - a.count);
+  }, [stats]);
+
+  if (!stats && loading) {
+    return (
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'60vh', flexDirection:'column', gap:'1rem' }}>
+        <div className="pulse" style={{ width:'12px', height:'12px', background:'#f97316', borderRadius:'50%' }}></div>
+        <div style={{ color:'var(--text-muted)', fontSize:'0.9rem', fontWeight:500 }}>리콜 데이터를 불러오는 중입니다...</div>
+      </div>
+    );
+  }
+  if (!stats) return null;
+
+  const hazardChartHeight = Math.max(300, hazardData.length * 36 + 60);
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:'2.5rem', opacity:loading?0.4:1, transition:'opacity 0.3s ease' }}>
+
+      {/* Header */}
+      <section className="glass-card animate-slide-up stagger-1" style={{ padding:'2.5rem', borderLeft:'5px solid #f97316' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'1rem' }}>
+          <div>
+            <h2 style={{ fontSize:'1.8rem', fontWeight:800, fontFamily:'Outfit, sans-serif', marginBottom:'0.5rem' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline', verticalAlign:'middle', marginRight:'8px' }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              글로벌 리콜제품 통계
+            </h2>
+            <p style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>
+              데이터 출처: Recall Hub — 13개국 정부기관 리콜 데이터 통합 &nbsp;|&nbsp; 실시간 동기화
+            </p>
+          </div>
+          <div style={{ display:'flex', background:'#f1f5f9', padding:'4px', borderRadius:'10px' }}>
+            {[['all','전체'],['90d','최근 90일'],['30d','최근 30일']].map(([k,l]) => (
+              <button key={k} onClick={()=>setPeriod(k)}
+                style={{ padding:'0.5rem 1.25rem', border:'none', borderRadius:'8px', fontSize:'0.85rem', fontWeight:600, cursor:'pointer',
+                  background: period===k?'#fff':'transparent', color: period===k?'#f97316':'var(--text-secondary)',
+                  boxShadow: period===k?'0 2px 8px rgba(0,0,0,0.05)':'none', transition:'all 0.2s' }}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stat Cards */}
+      <div className="overview-grid animate-slide-up stagger-2">
+        <div className="glass-card stat-card" style={{ borderBottom:'3px solid #f97316' }}>
+          <div className="stat-title">총 리콜 건수</div>
+          <div className="stat-value" style={{ background:'linear-gradient(to right,#f97316,#ea580c)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            {stats.total_recalls.toLocaleString()}
+          </div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>{sourceData.length}개국 출처</div>
+        </div>
+        <div className="glass-card stat-card" style={{ borderBottom:'3px solid #3b82f6' }}>
+          <div className="stat-title">한국 관련 리콜</div>
+          <div className="stat-value" style={{ background:'linear-gradient(to right,#3b82f6,#1d4ed8)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            {stats.korea_relevance_count.toLocaleString()}
+          </div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>한국 시장 관련성</div>
+        </div>
+        <div className="glass-card stat-card" style={{ borderBottom:'3px solid #ef4444' }}>
+          <div className="stat-title">부상 보고</div>
+          <div className="stat-value" style={{ background:'linear-gradient(to right,#ef4444,#dc2626)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            {stats.with_injuries_count.toLocaleString()}
+          </div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>실제 부상 발생</div>
+        </div>
+        <div className="glass-card stat-card" style={{ borderBottom:'3px solid #7c3aed' }}>
+          <div className="stat-title">심각 등급 비율</div>
+          <div className="stat-value" style={{ background:'linear-gradient(to right,#7c3aed,#6d28d9)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            {seriousPercent}%
+          </div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:500 }}>ISO 심각도 4-5 ({seriousCount}건)</div>
+        </div>
+      </div>
+
+      {/* Charts Row 1: Monthly Trend + Source Distribution */}
+      <div className="charts-grid animate-slide-up stagger-3">
+        <div className="glass-card chart-container">
+          <h3 className="section-title">월별 리콜 발생 추이</h3>
+          <ResponsiveContainer width="100%" height={380}>
+            <AreaChart data={monthlyData} margin={{ top:10, right:30, left:0, bottom:0 }}>
+              <defs>
+                <linearGradient id="recallGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)"/>
+              <XAxis dataKey="name" tick={{ fill:'var(--text-secondary)', fontSize:12 }}/>
+              <YAxis tick={{ fill:'var(--text-secondary)', fontSize:12 }}/>
+              <Tooltip content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                return (
+                  <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{label}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>리콜 건수: <strong style={{ color:'#f97316' }}>{payload[0].value}건</strong></div>
+                  </div>
+                );
+              }}/>
+              <Area type="monotone" dataKey="count" stroke="#f97316" strokeWidth={3} fill="url(#recallGrad)" dot={{ r:5, fill:'#f97316', strokeWidth:2, stroke:'#fff' }}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="glass-card chart-container">
+          <h3 className="section-title">출처(국가)별 리콜 비중</h3>
+          <ResponsiveContainer width="100%" height={320}>
+            <PieChart>
+              <Pie data={sourceData} cx="50%" cy="50%" innerRadius={55} outerRadius={100} dataKey="count" nameKey="name" stroke="#fff" strokeWidth={2}
+                label={({ name, percent, x, y, cx }) => percent > 0.05 ? (
+                  <text x={x} y={y} fill="var(--text-secondary)" fontSize="11" fontWeight="600" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+                    {name}
+                  </text>
+                ) : null}>
+                {sourceData.map((_, i) => <Cell key={i} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]}/>)}
+              </Pie>
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0].payload;
+                const pct = stats.total_recalls > 0 ? ((d.count / stats.total_recalls) * 100).toFixed(1) : '0';
+                return (
+                  <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{d.name}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{d.count}건 ({pct}%)</div>
+                  </div>
+                );
+              }}/>
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', justifyContent:'center', marginTop:'0.5rem' }}>
+            {sourceData.slice(0,6).map((s,i) => (
+              <span key={i} style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                <span style={{ width:'8px', height:'8px', borderRadius:'3px', background:SOURCE_COLORS[i], display:'inline-block' }}></span>
+                {s.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 2: Hazard Type + Severity */}
+      <div className="charts-grid animate-slide-up stagger-4">
+        <div className="glass-card chart-container">
+          <h3 className="section-title">위해유형별 분포</h3>
+          <ResponsiveContainer width="100%" height={hazardChartHeight}>
+            <BarChart data={hazardData} layout="vertical" margin={{ left:20, right:30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)"/>
+              <XAxis type="number" tick={{ fill:'var(--text-secondary)', fontSize:12 }}/>
+              <YAxis dataKey="hazard_type" type="category" width={130} tick={{ fill:'var(--text-primary)', fontSize:11, fontWeight:300 }} interval={0}/>
+              <Tooltip content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const v = payload[0].value;
+                const pct = stats.total_recalls > 0 ? ((v / stats.total_recalls) * 100).toFixed(1) : '0';
+                return (
+                  <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{label}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{v}건 ({pct}%)</div>
+                  </div>
+                );
+              }}/>
+              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#hazardGrad)"/>
+              <defs>
+                <linearGradient id="hazardGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#f97316"/><stop offset="100%" stopColor="#ef4444"/>
+                </linearGradient>
+              </defs>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="glass-card chart-container" style={{ display:'flex', flexDirection:'column' }}>
+          <h3 className="section-title">심각도 분포 (ISO 5665)</h3>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie data={severityData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} dataKey="value" nameKey="name" stroke="#fff" strokeWidth={2}
+                  label={({ name, percent }) => percent > 0.05 ? `${name}` : null}
+                  labelLine={true}>
+                  {severityData.map((entry, i) => <Cell key={i} fill={SEVERITY_COLORS[entry.severity - 1] || '#94a3b8'}/>)}
+                </Pie>
+                <Tooltip content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div className="glass-card" style={{ padding:'10px 14px', border:'1px solid var(--border-color)', boxShadow:'var(--glass-shadow)', background:'#fff' }}>
+                      <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{d.name} (Level {d.severity})</div>
+                      <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{d.value}건</div>
+                    </div>
+                  );
+                }}/>
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display:'flex', gap:'1rem', justifyContent:'center', flexWrap:'wrap', marginTop:'0.5rem' }}>
+              {severityData.map((s, i) => (
+                <span key={i} style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                  <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:SEVERITY_COLORS[s.severity-1], display:'inline-block' }}></span>
+                  {s.name} ({s.value})
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Treemap */}
+      {categoryData.length > 0 && (
+        <div className="glass-card animate-slide-up" style={{ padding:'2rem' }}>
+          <h3 className="section-title">제품 카테고리별 리콜 현황</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <Treemap
+              data={categoryData.map((c,i) => ({ name: c.name, size: c.count, fill: TREEMAP_COLORS[i % TREEMAP_COLORS.length] }))}
+              dataKey="size" nameKey="name" stroke="#fff" animationDuration={200}
+              content={(props) => {
+                const { x, y, width, height, name, size, fill, depth } = props;
+                if (width < 40 || height < 25) return null;
+                const isRoot = depth === 0 || !name;
+                const validSize = Number(size) || 0;
+                const total = categoryData.reduce((a,b)=>a+b.count,0);
+                const pct = total > 0 ? ((validSize/total)*100).toFixed(1) : '0';
+                return (
+                  <g>
+                    <rect x={x} y={y} width={width} height={height} rx={4} style={{ fill: fill||'#3b82f6', stroke:'#fff', strokeWidth:2, opacity:0.9 }} className="treemap-rect"/>
+                    {!isRoot && width > 60 && height > 35 && (
+                      <>
+                        <text x={x+width/2} y={y+height/2-6} textAnchor="middle" fill="#fff" fontSize={13} fontWeight={100}>
+                          {name?.length > 10 ? name?.slice(0,10)+'…' : name}
+                        </text>
+                        <text x={x+width/2} y={y+height/2+12} textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize={11} fontWeight={100}>
+                          {validSize}건 ({pct}%)
+                        </text>
+                      </>
+                    )}
+                  </g>
+                );
+              }}>
+              <Tooltip content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0].payload;
+                const total = categoryData.reduce((a,b)=>a+b.count,0);
+                const v = d.size || d.count || 0;
+                const pct = total > 0 ? ((v/total)*100).toFixed(1) : '0';
+                return (
+                  <div style={{ backgroundColor:'#fff', padding:'10px 14px', border:'1px solid var(--border-color)', borderRadius:'10px', boxShadow:'var(--glass-shadow)' }}>
+                    <div style={{ fontWeight:700, fontSize:'14px', marginBottom:'4px' }}>{d.name}</div>
+                    <div style={{ fontSize:'12px', color:'var(--text-secondary)' }}>{v}건 ({pct}%)</div>
+                  </div>
+                );
+              }}/>
+            </Treemap>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Recent Recalls */}
+      {recent?.data && recent.data.length > 0 && (
+        <section className="glass-card animate-slide-up" style={{ padding:'2rem' }}>
+          <h3 className="section-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline', verticalAlign:'middle', marginRight:'8px' }}>
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            최근 7일 리콜 알림
+            <span style={{ fontSize:'0.85rem', fontWeight:400, color:'var(--text-muted)', marginLeft:'10px' }}>
+              ({recent.meta?.count || recent.data.length}건)
+            </span>
+          </h3>
+          <div className="recall-card-grid">
+            {recent.data.slice(0, 12).map((item) => (
+              <a key={item.id} href={item.source_url || '#'} target="_blank" rel="noopener noreferrer"
+                className="recall-card">
+                <div className="recall-card-img-wrap">
+                  {item.image_1 ? (
+                    <img src={item.image_1} alt={item.product_name || ''} className="recall-card-img" loading="lazy"/>
+                  ) : (
+                    <div className="recall-card-img-placeholder">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                  )}
+                  <span className={`recall-source-badge recall-source-${item.source?.toLowerCase().replace(/[^a-z]/g,'')}`}>
+                    {SOURCE_LABELS[item.source] || item.source}
+                  </span>
+                </div>
+                <div className="recall-card-body">
+                  <div className="recall-card-title">{item.product_name || '제품명 미상'}</div>
+                  {item.brand_name && <div className="recall-card-brand">{item.brand_name}</div>}
+                  <div className="recall-card-meta">
+                    {item.hazard_type && <span className="recall-hazard-tag">{item.hazard_type}</span>}
+                    <span className="recall-date">{item.published_date}</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

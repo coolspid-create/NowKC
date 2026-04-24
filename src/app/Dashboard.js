@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, Treemap
 } from 'recharts';
 import WordCloud from './components/WordCloud';
+import RecallDashboard from './RecallDashboard';
 
 const Icons = {
   All: () => (
@@ -42,6 +43,12 @@ const TABS = [
   { key: '전기용품', label: '전기용품', icon: <Icons.Electric /> },
   { key: '생활용품', label: '생활용품', icon: <Icons.Life /> },
   { key: '어린이제품', label: '어린이제품', icon: <Icons.Child /> },
+  { key: '_divider' },
+  { key: 'RECALL', label: '리콜제품', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  )},
 ];
 
 const PIE_COLORS = [
@@ -57,6 +64,7 @@ export default function Dashboard() {
   const [drilldownPath, setDrilldownPath] = useState([]); // Array of node names for drilling down
 
   useEffect(() => {
+    if (activeTab === 'RECALL') return;
     setDrilldownPath(activeTab === 'ALL' ? [] : [activeTab]);
     fetchData();
   }, [activeTab]);
@@ -139,7 +147,7 @@ export default function Dashboard() {
   };
 
   // Show full loading spinner ONLY initially or when data completely crashes
-  if (!data && loading) {
+  if (!data && loading && activeTab !== 'RECALL') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', flexDirection: 'column', gap: '1rem' }}>
         <div className="pulse" style={{ width: '12px', height: '12px', background: 'var(--accent-electric)', borderRadius: '50%' }}></div>
@@ -163,18 +171,24 @@ export default function Dashboard() {
     <>
       {/* Tab Navigation */}
       <nav className="tab-nav">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            <span className="tab-icon">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+        {TABS.map(tab => {
+          if (tab.key === '_divider') return <div key="_divider" className="tab-divider" />;
+          return (
+            <button
+              key={tab.key}
+              className={`tab-btn ${activeTab === tab.key ? 'active' : ''} ${tab.key === 'RECALL' ? 'tab-btn-recall' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              <span className="tab-icon">{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
+      {activeTab === 'RECALL' ? (
+        <RecallDashboard />
+      ) : (
       <div style={{ 
         display: 'flex',
         flexDirection: 'column',
@@ -538,6 +552,7 @@ export default function Dashboard() {
         <WordCloud words={wordcloudData} height={480} />
       </div>
       </div>
+      )}
     </>
   );
 }
