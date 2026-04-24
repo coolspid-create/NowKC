@@ -16,7 +16,7 @@ export async function GET(request) {
     if (startDateParam || endDateParam) {
       where.recordDate = {};
       if (startDateParam) where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
-      if (endDateParam) where.recordDate.lte = new Date(endDateParam + 'T00:00:00.000Z');
+      if (endDateParam) where.recordDate.lte = new Date(endDateParam + 'T23:59:59.999Z');
     }
 
     // Group by recordDate and majorCategory
@@ -71,34 +71,38 @@ export async function GET(request) {
         deltaC = current.어린이제품 - prev.어린이제품;
       }
 
-      dailyDelta.push({
-        name: current.name,
-        totalDelta: deltaTotal,
-        전기용품: deltaE,
-        생활용품: deltaL,
-        어린이제품: deltaC,
-      });
+      // Only push if it's not the very first day (which has 0 delta)
+      // OR if we want to show 0 bars. The user said remove 20th data.
+      if (i > 0) {
+        dailyDelta.push({
+          name: current.name,
+          totalDelta: deltaTotal,
+          전기용품: deltaE,
+          생활용품: deltaL,
+          어린이제품: deltaC,
+        });
 
-      // Calculate ratios (percentages 0-100)
-      if (deltaTotal > 0) {
-        dailyRatio.push({
-          name: current.name,
-          totalDelta: deltaTotal, // also pass absolute count for tooltip
-          전기용품: (deltaE / deltaTotal) * 100,
-          전기용품_count: deltaE,
-          생활용품: (deltaL / deltaTotal) * 100,
-          생활용품_count: deltaL,
-          어린이제품: (deltaC / deltaTotal) * 100,
-          어린이제품_count: deltaC,
-        });
-      } else {
-        dailyRatio.push({
-          name: current.name,
-          totalDelta: 0,
-          전기용품: 0, 전기용품_count: 0,
-          생활용품: 0, 생활용품_count: 0,
-          어린이제품: 0, 어린이제품_count: 0,
-        });
+        // Calculate ratios (percentages 0-100)
+        if (deltaTotal > 0) {
+          dailyRatio.push({
+            name: current.name,
+            totalDelta: deltaTotal, // also pass absolute count for tooltip
+            전기용품: (deltaE / deltaTotal) * 100,
+            전기용품_count: deltaE,
+            생활용품: (deltaL / deltaTotal) * 100,
+            생활용품_count: deltaL,
+            어린이제품: (deltaC / deltaTotal) * 100,
+            어린이제품_count: deltaC,
+          });
+        } else {
+          dailyRatio.push({
+            name: current.name,
+            totalDelta: 0,
+            전기용품: 0, 전기용품_count: 0,
+            생활용품: 0, 생활용품_count: 0,
+            어린이제품: 0, 어린이제품_count: 0,
+          });
+        }
       }
     }
 
