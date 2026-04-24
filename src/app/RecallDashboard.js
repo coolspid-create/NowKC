@@ -64,24 +64,18 @@ const HF_CODE_LABELS = {
   'HF.UNKNOWN': '알 수 없음'
 };
 
-export default function RecallDashboard() {
+export default function RecallDashboard({ startDate, endDate }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('all');
 
-  useEffect(() => { fetchData(); }, [period]);
+  useEffect(() => { 
+    if (startDate && endDate) fetchData(); 
+  }, [startDate, endDate]);
 
   async function fetchData() {
     setLoading(true);
     try {
-      let statsUrl = '/api/recall/stats';
-      if (period === '30d') {
-        const d = new Date(); d.setDate(d.getDate()-30);
-        statsUrl += `?date_from=${d.toISOString().slice(0,10)}`;
-      } else if (period === '90d') {
-        const d = new Date(); d.setDate(d.getDate()-90);
-        statsUrl += `?date_from=${d.toISOString().slice(0,10)}`;
-      }
+      let statsUrl = `/api/recall/stats?date_from=${startDate}&date_to=${endDate}`;
       const sRes = await fetch(statsUrl).then(r=>r.json());
       if (sRes.success) setStats(sRes.data);
     } catch(e) { console.error(e); }
@@ -184,20 +178,6 @@ export default function RecallDashboard() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'2.5rem', opacity:loading?0.4:1, transition:'opacity 0.3s ease' }}>
-
-      {/* Top Period Filter (matching dashboard style) */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-1rem' }}>
-        <div style={{ display:'flex', background:'var(--glass-bg)', padding:'6px', borderRadius:'12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
-          {[['all','전체'],['90d','최근 90일'],['30d','최근 30일']].map(([k,l]) => (
-            <button key={k} onClick={()=>setPeriod(k)}
-              style={{ padding:'6px 16px', border:'none', borderRadius:'8px', fontSize:'0.85rem', fontWeight:600, cursor:'pointer',
-                background: period===k?'#fff':'transparent', color: period===k?'#f97316':'var(--text-secondary)',
-                boxShadow: period===k?'0 2px 8px rgba(0,0,0,0.05)':'none', transition:'all 0.2s' }}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Recall Summary Overview (Style matched to Dashboard.js) */}
       <section className="glass-card lifetime-overview animate-slide-up stagger-1" style={{ borderLeft: '5px solid #f97316', padding: '1.5rem' }}>

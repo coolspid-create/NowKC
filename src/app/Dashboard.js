@@ -225,7 +225,7 @@ export default function Dashboard() {
           })}
         </nav>
         
-        {activeTab !== 'RECALL' && availableDates.length > 0 && (
+        {availableDates.length > 0 && (
           <div className="date-picker-group" style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간</span>
             <input 
@@ -243,19 +243,19 @@ export default function Dashboard() {
             />
             <button 
               onClick={handleShowAllDates}
-              style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-electric)', background: 'rgba(59,130,246,0.1)', border: '1px solid var(--accent-electric)', borderRadius: '6px', cursor: 'pointer', marginLeft: '4px' }}
+              style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, color: activeTab === 'RECALL' ? '#f97316' : 'var(--accent-electric)', background: activeTab === 'RECALL' ? 'rgba(249,115,22,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${activeTab === 'RECALL' ? '#f97316' : 'var(--accent-electric)'}`, borderRadius: '6px', cursor: 'pointer', marginLeft: '4px' }}
             >
               전체
             </button>
             <div style={{ position: 'absolute', bottom: '-18px', right: '4px', fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.8 }}>
-              SafetyKorea 등록 날짜 기준 통계입니다.
+              {activeTab === 'RECALL' ? 'Recall Hub 수집 날짜 기준' : 'SafetyKorea 등록 날짜 기준'} 통계입니다.
             </div>
           </div>
         )}
       </div>
 
       {activeTab === 'RECALL' ? (
-        <RecallDashboard />
+        <RecallDashboard startDate={startDate} endDate={endDate} />
       ) : (
       <div style={{ 
         display: 'flex',
@@ -274,8 +274,19 @@ export default function Dashboard() {
         )}
 
         {/* Lifetime Totals Overview */}
-        <section className="glass-card lifetime-overview animate-slide-up stagger-1" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-          <h3 className="section-title" style={{ marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.1rem' }}>전체 인증 현황 (누계)</h3>
+        <section className="glass-card lifetime-overview animate-slide-up stagger-1" style={{ 
+          marginBottom: '1.5rem', 
+          padding: '1.5rem',
+          borderLeft: `5px solid ${
+            activeTab === '전기용품' ? 'var(--accent-electric)' :
+            activeTab === '생활용품' ? 'var(--accent-life)' :
+            activeTab === '어린이제품' ? 'var(--accent-child)' :
+            'var(--accent-electric)'
+          }`
+        }}>
+          <h3 className="section-title" style={{ marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.1rem' }}>
+            {activeTab === 'ALL' ? '전체 인증 현황 (누계)' : `${activeTab} 인증 현황 (누계)`}
+          </h3>
           <div className="lifetime-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
             <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>통합</div>
