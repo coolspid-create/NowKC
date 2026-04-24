@@ -25,7 +25,7 @@ export async function GET(request) {
 
     let records = [];
 
-    if (startDateParam) {
+    if (startDateParam && startDateParam !== endDateParam) {
       const startDate = new Date(startDateParam + 'T00:00:00.000Z');
       const whereStart = { recordDate: startDate };
       if (majorCategory) whereStart.majorCategory = majorCategory;

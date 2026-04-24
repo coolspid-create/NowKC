@@ -259,7 +259,9 @@ export default function Dashboard() {
 
         {/* Summary Table */}
         <section className="glass-card summary-section animate-slide-up stagger-1">
-          <h3 className="section-title">등록누계 현황</h3>
+          <h3 className="section-title">
+            {startDate && endDate && startDate !== endDate ? '기간 내 신규 등록 현황' : '등록누계 현황'}
+          </h3>
         <div className="summary-layout">
           <div className="pie-area">
             <ResponsiveContainer width="100%" height={280}>
