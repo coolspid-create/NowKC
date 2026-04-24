@@ -42,8 +42,8 @@ export async function GET(request) {
       const sheet = workbook.Sheets[sheetName];
       const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
       
-      const [dd, mm, yy] = sheetName.split('.').map(s => parseInt(s, 10));
-      // Store as UTC midnight. yy is likely 21, 24, etc.
+      const [yy, mm, dd] = sheetName.split('.').map(s => parseInt(s, 10));
+      // Store as UTC midnight (e.g. 26.04.21 -> 2026-04-21T00:00:00Z)
       const recordDate = new Date(Date.UTC(2000 + yy, mm - 1, dd));
 
       let insertedCount = 0;

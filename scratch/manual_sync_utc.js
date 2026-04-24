@@ -24,7 +24,7 @@ async function sync() {
     console.log(`Processing ${sheetName}...`);
     const sheet = workbook.Sheets[sheetName];
     const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
-    const [dd, mm, yy] = sheetName.split('.').map(s => parseInt(s, 10));
+    const [yy, mm, dd] = sheetName.split('.').map(s => parseInt(s, 10));
     const recordDate = new Date(Date.UTC(2000 + yy, mm - 1, dd));
 
     for (const row of rows) {

@@ -55,14 +55,21 @@ export async function GET(request) {
     const dailyDelta = [];
     const dailyRatio = [];
 
-    for (let i = 1; i < cumulativeData.length; i++) {
+    for (let i = 0; i < cumulativeData.length; i++) {
       const current = cumulativeData[i];
-      const prev = cumulativeData[i - 1];
       
-      const deltaTotal = current.total - prev.total;
-      const deltaE = current.전기용품 - prev.전기용품;
-      const deltaL = current.생활용품 - prev.생활용품;
-      const deltaC = current.어린이제품 - prev.어린이제품;
+      let deltaTotal = 0;
+      let deltaE = 0;
+      let deltaL = 0;
+      let deltaC = 0;
+
+      if (i > 0) {
+        const prev = cumulativeData[i - 1];
+        deltaTotal = current.total - prev.total;
+        deltaE = current.전기용품 - prev.전기용품;
+        deltaL = current.생활용품 - prev.생활용품;
+        deltaC = current.어린이제품 - prev.어린이제품;
+      }
 
       dailyDelta.push({
         name: current.name,
@@ -76,16 +83,21 @@ export async function GET(request) {
       if (deltaTotal > 0) {
         dailyRatio.push({
           name: current.name,
+          totalDelta: deltaTotal, // also pass absolute count for tooltip
           전기용품: (deltaE / deltaTotal) * 100,
+          전기용품_count: deltaE,
           생활용품: (deltaL / deltaTotal) * 100,
+          생활용품_count: deltaL,
           어린이제품: (deltaC / deltaTotal) * 100,
+          어린이제품_count: deltaC,
         });
       } else {
         dailyRatio.push({
           name: current.name,
-          전기용품: 0,
-          생활용품: 0,
-          어린이제품: 0,
+          totalDelta: 0,
+          전기용품: 0, 전기용품_count: 0,
+          생활용품: 0, 생활용품_count: 0,
+          어린이제품: 0, 어린이제품_count: 0,
         });
       }
     }

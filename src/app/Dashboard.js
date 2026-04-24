@@ -177,6 +177,13 @@ export default function Dashboard() {
     }
   };
 
+  const handleShowAllDates = () => {
+    if (availableDates.length > 0) {
+      setStartDate(availableDates[0]);
+      setEndDate(availableDates[availableDates.length - 1]);
+    }
+  };
+
   // Show full loading spinner ONLY initially or when data completely crashes
   if (!data && loading && activeTab !== 'RECALL') {
     return (
@@ -234,6 +241,12 @@ export default function Dashboard() {
               className="glass-input" 
               style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.7)', outline: 'none' }} 
             />
+            <button 
+              onClick={handleShowAllDates}
+              style={{ padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-electric)', background: 'rgba(59,130,246,0.1)', border: '1px solid var(--accent-electric)', borderRadius: '6px', cursor: 'pointer', marginLeft: '4px' }}
+            >
+              전체
+            </button>
           </div>
         )}
       </div>
@@ -418,7 +431,10 @@ export default function Dashboard() {
                 <YAxis tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
-                  formatter={(value, name) => [`${value.toFixed(1)}%`, name]}
+                  formatter={(value, name, props) => {
+                    const count = props.payload[`${name}_count`];
+                    return [`${value.toFixed(1)}% (${count?.toLocaleString()}건)`, name];
+                  }}
                   labelStyle={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 500 }} />
