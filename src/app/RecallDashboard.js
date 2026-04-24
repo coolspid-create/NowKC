@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Treemap
+  PieChart, Pie, Cell, AreaChart, Area, Treemap, LabelList
 } from 'recharts';
 
 const SOURCE_LABELS = {
@@ -138,25 +138,26 @@ export default function RecallDashboard() {
   }, [stats]);
 
   const productGroupTable = useMemo(() => {
-    if (!stats?.by_product_group_country) return { countries: [], data: {}, targetGroups: [] };
-    const pData = stats.by_product_group_country;
     const targetGroups = ['전기용품', '생활용품', '어린이제품'];
-    const countrySet = new Set();
     const dataByCountry = {};
     
-    pData.forEach(d => {
-      if (targetGroups.includes(d.product_group)) {
-        countrySet.add(d.country);
-        if (!dataByCountry[d.country]) dataByCountry[d.country] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
-        dataByCountry[d.country][d.product_group] += d.count;
-      }
+    // Initialize with all countries from SOURCE_LABELS
+    Object.values(SOURCE_LABELS).forEach(label => {
+      dataByCountry[label] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
     });
 
-    const countries = Array.from(countrySet).sort((a,b) => {
-      const aTotal = targetGroups.reduce((sum, g) => sum + dataByCountry[a][g], 0);
-      const bTotal = targetGroups.reduce((sum, g) => sum + dataByCountry[b][g], 0);
-      return bTotal - aTotal;
-    });
+    if (stats?.by_product_group_country) {
+      stats.by_product_group_country.forEach(d => {
+        if (targetGroups.includes(d.product_group)) {
+          if (!dataByCountry[d.country]) {
+            dataByCountry[d.country] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
+          }
+          dataByCountry[d.country][d.product_group] += d.count;
+        }
+      });
+    }
+
+    const countries = Object.keys(dataByCountry).sort((a, b) => a.localeCompare(b, 'ko'));
     return { countries, data: dataByCountry, targetGroups };
   }, [stats]);
 
@@ -328,7 +329,12 @@ export default function RecallDashboard() {
                   </div>
                 );
               }}/>
-              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#hfGrad)"/>
+              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#hfGrad)">
+                <LabelList dataKey="count" position="right" formatter={(v) => {
+                  const pct = stats.total_recalls > 0 ? ((v / stats.total_recalls) * 100).toFixed(1) : '0';
+                  return `${v}건 (${pct}%)`;
+                }} style={{ fill: 'var(--text-secondary)', fontSize: '11px', fontWeight: 500 }} offset={8} />
+              </Bar>
               <defs>
                 <linearGradient id="hfGrad" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="#8b5cf6"/><stop offset="100%" stopColor="#ec4899"/>
@@ -356,7 +362,12 @@ export default function RecallDashboard() {
                   </div>
                 );
               }}/>
-              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#dtGrad)"/>
+              <Bar dataKey="count" radius={[0,6,6,0]} fill="url(#dtGrad)">
+                <LabelList dataKey="count" position="right" formatter={(v) => {
+                  const pct = stats.total_recalls > 0 ? ((v / stats.total_recalls) * 100).toFixed(1) : '0';
+                  return `${v}건 (${pct}%)`;
+                }} style={{ fill: 'var(--text-secondary)', fontSize: '11px', fontWeight: 500 }} offset={8} />
+              </Bar>
               <defs>
                 <linearGradient id="dtGrad" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor="#14b8a6"/><stop offset="100%" stopColor="#3b82f6"/>
