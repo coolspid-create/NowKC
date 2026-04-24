@@ -8,6 +8,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const majorCategory = searchParams.get('major'); // 대분류 filter
     const certType = searchParams.get('cert');       // 중분류 filter
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     const latestRecord = await prisma.dataRecord.findFirst({
       orderBy: { recordDate: 'desc' },
@@ -21,13 +23,46 @@ export async function GET(request) {
       });
     }
 
-    const latestDate = latestRecord.recordDate;
+    const endDate = endDateParam ? new Date(endDateParam) : latestRecord.recordDate;
+    
+    // Fetch end date records
+    const whereEnd = { recordDate: endDate };
+    if (majorCategory) whereEnd.majorCategory = majorCategory;
+    if (certType) whereEnd.certType = certType;
+    const endRecords = await prisma.dataRecord.findMany({ where: whereEnd });
 
-    const where = { recordDate: latestDate };
-    if (majorCategory) where.majorCategory = majorCategory;
-    if (certType) where.certType = certType;
+    let records = [];
 
-    const records = await prisma.dataRecord.findMany({ where });
+    if (startDateParam) {
+      // Calculate delta
+      const startDate = new Date(startDateParam);
+      const whereStart = { recordDate: startDate };
+      if (majorCategory) whereStart.majorCategory = majorCategory;
+      if (certType) whereStart.certType = certType;
+      const startRecords = await prisma.dataRecord.findMany({ where: whereStart });
+
+      const deltaMap = {};
+      const getKey = (r) => `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2 || ''}|${r.depth3 || ''}`;
+
+      endRecords.forEach(r => {
+        const k = getKey(r);
+        deltaMap[k] = { ...r, count: r.count };
+      });
+
+      startRecords.forEach(r => {
+        const k = getKey(r);
+        if (deltaMap[k]) {
+          deltaMap[k].count -= r.count;
+        } else {
+          deltaMap[k] = { ...r, count: -r.count };
+        }
+      });
+
+      records = Object.values(deltaMap).filter(r => r.count > 0); // only positive deltas or all? Let's show all > 0
+    } else {
+      // Snapshot mode
+      records = endRecords;
+    }
 
     // === 1. Summary table: 대분류별 계/안전인증/안전확인 ===
     const summaryMap = {};
@@ -49,6 +84,7 @@ export async function GET(request) {
     // === 2. Hierarchy tree data for drilldown (Major > CertType > D1 > D2 > D3) ===
     const treeMap = {};
     records.forEach(r => {
+      if (r.count <= 0) return; // Pie charts shouldn't have negative
       // Level 1: Major Category
       const keyM = r.majorCategory;
       if (!treeMap[keyM]) treeMap[keyM] = { name: keyM, total: 0, children: {} };
@@ -82,7 +118,6 @@ export async function GET(request) {
       }
     });
 
-    // Helper to recursively convert Map to Array
     const convertToArray = (nodes) => {
       return Object.values(nodes).map(node => ({
         name: node.name,
@@ -98,20 +133,6 @@ export async function GET(request) {
     const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
     const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
 
-    // === 4. Get last update time (Query max recordDate from DB) ===
-    let lastUpdated = new Date();
-    try {
-      const latestRecord = await prisma.dataRecord.findFirst({
-        orderBy: { recordDate: 'desc' },
-        select: { recordDate: true }
-      });
-      if (latestRecord) {
-        lastUpdated = latestRecord.recordDate;
-      }
-    } catch (e) {
-      console.error('Failed to get last update date:', e);
-    }
-
     return NextResponse.json({
       success: true,
       data: {
@@ -120,7 +141,7 @@ export async function GET(request) {
         grandTotal,
         totalCertification,
         totalConfirmation,
-        lastUpdated: lastUpdated.toISOString()
+        lastUpdated: latestRecord.recordDate.toISOString()
       }
     });
   } catch (error) {

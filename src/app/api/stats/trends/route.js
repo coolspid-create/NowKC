@@ -43,22 +43,41 @@ export async function GET(request) {
 
     const cumulativeData = Object.values(dateMap).sort((a, b) => a.name.localeCompare(b.name));
 
-    // Calculate Weekly Deltas
-    const weeklyDelta = [];
-    for (let i = 0; i < cumulativeData.length; i++) {
+    // Calculate Daily Deltas and Ratios
+    const dailyDelta = [];
+    const dailyRatio = [];
+
+    for (let i = 1; i < cumulativeData.length; i++) {
       const current = cumulativeData[i];
-      if (i === 0) {
-        // For the first week, we might not have a baseline, so we can set it to 0 or omit it.
-        // Let's set to 0 to avoid huge bar.
-        weeklyDelta.push({ name: current.name, totalDelta: 0, 전기용품: 0, 생활용품: 0, 어린이제품: 0 });
-      } else {
-        const prev = cumulativeData[i - 1];
-        weeklyDelta.push({
+      const prev = cumulativeData[i - 1];
+      
+      const deltaTotal = current.total - prev.total;
+      const deltaE = current.전기용품 - prev.전기용품;
+      const deltaL = current.생활용품 - prev.생활용품;
+      const deltaC = current.어린이제품 - prev.어린이제품;
+
+      dailyDelta.push({
+        name: current.name,
+        totalDelta: deltaTotal,
+        전기용품: deltaE,
+        생활용품: deltaL,
+        어린이제품: deltaC,
+      });
+
+      // Calculate ratios (percentages 0-100)
+      if (deltaTotal > 0) {
+        dailyRatio.push({
           name: current.name,
-          totalDelta: current.total - prev.total,
-          전기용품: current.전기용품 - prev.전기용품,
-          생활용품: current.생활용품 - prev.생활용품,
-          어린이제품: current.어린이제품 - prev.어린이제품,
+          전기용품: (deltaE / deltaTotal) * 100,
+          생활용품: (deltaL / deltaTotal) * 100,
+          어린이제품: (deltaC / deltaTotal) * 100,
+        });
+      } else {
+        dailyRatio.push({
+          name: current.name,
+          전기용품: 0,
+          생활용품: 0,
+          어린이제품: 0,
         });
       }
     }
@@ -66,8 +85,8 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       data: {
-        cumulativeData,
-        weeklyDelta
+        dailyDelta,
+        dailyRatio
       }
     });
   } catch (error) {

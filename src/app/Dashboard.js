@@ -63,20 +63,48 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [drilldownPath, setDrilldownPath] = useState([]); // Array of node names for drilling down
+  
+  const [availableDates, setAvailableDates] = useState([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Fetch available dates on mount
+  useEffect(() => {
+    fetch('/api/dates').then(r => r.json()).then(res => {
+      if (res.success && res.data.length > 0) {
+        setAvailableDates(res.data);
+        // Default to a 7-day period if possible, otherwise first to last
+        const dates = res.data;
+        if (dates.length > 7) {
+          setStartDate(dates[dates.length - 8]);
+          setEndDate(dates[dates.length - 1]);
+        } else if (dates.length > 1) {
+          setStartDate(dates[0]);
+          setEndDate(dates[dates.length - 1]);
+        } else {
+          setStartDate(dates[0]);
+          setEndDate(dates[0]);
+        }
+      }
+    }).catch(e => console.error("Dates fetch error:", e));
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'RECALL') return;
     setDrilldownPath(activeTab === 'ALL' ? [] : [activeTab]);
-    fetchData();
-  }, [activeTab]);
+    if (endDate) fetchData();
+  }, [activeTab, startDate, endDate]);
 
   async function fetchData() {
     try {
-      const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}` : '';
+      if (!startDate || !endDate) return;
+      const dateParams = `&startDate=${startDate}&endDate=${endDate}`;
+      const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}${dateParams}` : `?${dateParams.substring(1)}`;
+      
       const [catRes, wordRes, trendRes] = await Promise.all([
         fetch(`/api/categories${params}`).then(r => r.json()),
-        fetch(`/api/stats/wordcloud${params ? params : ''}`).then(r => r.json()),
-        fetch(`/api/stats/trends${params ? params : ''}`).then(r => r.json()),
+        fetch(`/api/stats/wordcloud${params}`).then(r => r.json()),
+        fetch(`/api/stats/trends${params}`).then(r => r.json()),
       ]);
       
       if (catRes.success) {
@@ -172,22 +200,43 @@ export default function Dashboard() {
 
   return (
     <>
-      {/* Tab Navigation */}
-      <nav className="tab-nav">
-        {TABS.map(tab => {
-          if (tab.key === '_divider') return <div key="_divider" className="tab-divider" />;
-          return (
-            <button
-              key={tab.key}
-              className={`tab-btn ${activeTab === tab.key ? 'active' : ''} ${tab.key === 'RECALL' ? 'tab-btn-recall' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              <span className="tab-icon">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Top Header Row with Tabs and Date Pickers */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', width: '100%', maxWidth: '1440px', margin: '0 auto 1.5rem auto', padding: '0 5%' }}>
+        <nav className="tab-nav" style={{ marginBottom: 0, margin: 0, width: 'auto', flex: 1 }}>
+          {TABS.map(tab => {
+            if (tab.key === '_divider') return <div key="_divider" className="tab-divider" />;
+            return (
+              <button
+                key={tab.key}
+                className={`tab-btn ${activeTab === tab.key ? 'active' : ''} ${tab.key === 'RECALL' ? 'tab-btn-recall' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <span className="tab-icon">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        
+        {activeTab !== 'RECALL' && availableDates.length > 0 && (
+          <div className="date-picker-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간</span>
+            <input 
+              type="date" value={startDate} onChange={e => setStartDate(e.target.value)} 
+              min={availableDates[0]} max={endDate} 
+              className="glass-input" 
+              style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.7)', outline: 'none' }} 
+            />
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>~</span>
+            <input 
+              type="date" value={endDate} onChange={e => setEndDate(e.target.value)} 
+              min={startDate} max={availableDates[availableDates.length - 1]} 
+              className="glass-input" 
+              style={{ padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.7)', outline: 'none' }} 
+            />
+          </div>
+        )}
+      </div>
 
       {activeTab === 'RECALL' ? (
         <RecallDashboard />
@@ -352,37 +401,38 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Weekly Trends Section */}
-      {trendData.cumulativeData.length > 0 && (
+      {/* Daily Trends Section */}
+      {trendData.dailyDelta && trendData.dailyDelta.length > 0 && (
         <div className="charts-grid animate-slide-up stagger-1">
-          {/* 1. Stacked Area Chart (Cumulative Trends) */}
+          
+          {/* 1. Stacked 100% Bar Chart (Daily Ratios) */}
           <div className="glass-card chart-container" style={{ gridColumn: '1 / -1' }}>
-            <h3 className="section-title">주간 인증 누계 추이</h3>
-            <p className="section-subtitle">전체 인증 규모 성장세 및 품목군 비중 변화</p>
+            <h3 className="section-title">일별 인증 품목 비중 추이 (비율)</h3>
+            <p className="section-subtitle">각 일자별 신규 등록 건수 중 품목군이 차지하는 비율 변화</p>
             <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
+              <BarChart data={trendData.dailyRatio} margin={{ top: 10, right: 30, left: 10, bottom: 0 }} stackOffset="expand">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <YAxis domain={['auto', 'auto']} tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--glass-shadow)' }}
-                  formatter={(value, name) => [value.toLocaleString() + '건', name]}
+                  formatter={(value, name) => [`${value.toFixed(1)}%`, name]}
                   labelStyle={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 500 }} />
-                {activeTab === 'ALL' || activeTab === '전기용품' ? <Area type="monotone" dataKey="전기용품" stackId="1" stroke="#3b82f6" fill="#93c5fd" /> : null}
-                {activeTab === 'ALL' || activeTab === '생활용품' ? <Area type="monotone" dataKey="생활용품" stackId="1" stroke="#10b981" fill="#6ee7b7" /> : null}
-                {activeTab === 'ALL' || activeTab === '어린이제품' ? <Area type="monotone" dataKey="어린이제품" stackId="1" stroke="#f59e0b" fill="#fcd34d" /> : null}
-              </AreaChart>
+                {activeTab === 'ALL' || activeTab === '전기용품' ? <Bar dataKey="전기용품" stackId="1" fill="#3b82f6" /> : null}
+                {activeTab === 'ALL' || activeTab === '생활용품' ? <Bar dataKey="생활용품" stackId="1" fill="#10b981" /> : null}
+                {activeTab === 'ALL' || activeTab === '어린이제품' ? <Bar dataKey="어린이제품" stackId="1" fill="#f59e0b" /> : null}
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* 2. Bar Chart (Weekly Delta / New Certifications) */}
+          {/* 2. Bar Chart (Daily Delta) */}
           <div className="glass-card chart-container">
-            <h3 className="section-title">주간 신규 인증 건수</h3>
-            <p className="section-subtitle">전주 대비 새로 추가된 인증 수량</p>
+            <h3 className="section-title">일별 신규 인증 건수</h3>
+            <p className="section-subtitle">일자별 새로 추가된 인증 수량</p>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={trendData.weeklyDelta.slice(1)} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+              <BarChart data={trendData.dailyDelta} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -401,12 +451,12 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* 3. Line Chart (Category Growth Comparison) */}
+          {/* 3. Line Chart (Daily Delta per Category) */}
           <div className="glass-card chart-container">
             <h3 className="section-title">품목별 성장 추이 비교</h3>
-            <p className="section-subtitle">품목군별 누적 건수 성장 속도 비교</p>
+            <p className="section-subtitle">일별 품목군별 신규 건수 변동</p>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData.cumulativeData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+              <LineChart data={trendData.dailyDelta} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis domain={['auto', 'auto']} tickFormatter={(val) => val.toLocaleString()} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />

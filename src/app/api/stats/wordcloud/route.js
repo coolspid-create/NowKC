@@ -5,6 +5,8 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const majorCategory = searchParams.get('major');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     const latestRecord = await prisma.dataRecord.findFirst({
       orderBy: { recordDate: 'desc' },
@@ -15,34 +17,61 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const where = { recordDate: latestRecord.recordDate };
-    if (majorCategory) where.majorCategory = majorCategory;
+    const endDate = endDateParam ? new Date(endDateParam) : latestRecord.recordDate;
 
-    // Get all items matching the category and date
-    const records = await prisma.dataRecord.findMany({
-      where,
-      orderBy: { recordDate: 'desc' }
-    });
+    const whereEnd = { recordDate: endDate };
+    if (majorCategory) whereEnd.majorCategory = majorCategory;
+    const endRecords = await prisma.dataRecord.findMany({ where: whereEnd });
 
-    // Group by the deepest available categorization (leaf node) + certType, take latest data
+    let records = [];
+
+    if (startDateParam) {
+      const startDate = new Date(startDateParam);
+      const whereStart = { recordDate: startDate };
+      if (majorCategory) whereStart.majorCategory = majorCategory;
+      const startRecords = await prisma.dataRecord.findMany({ where: whereStart });
+
+      const deltaMap = {};
+      const getKey = (r) => `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2 || ''}|${r.depth3 || ''}`;
+
+      endRecords.forEach(r => {
+        const k = getKey(r);
+        deltaMap[k] = { ...r, count: r.count };
+      });
+
+      startRecords.forEach(r => {
+        const k = getKey(r);
+        if (deltaMap[k]) {
+          deltaMap[k].count -= r.count;
+        } else {
+          deltaMap[k] = { ...r, count: -r.count };
+        }
+      });
+
+      records = Object.values(deltaMap).filter(r => r.count > 0);
+    } else {
+      records = endRecords;
+    }
+
     const itemMap = {};
     records.forEach(r => {
       const leafName = r.depth3 || r.depth2 || r.depth1;
-      
-      // If we've already tracked this leafName for this category today, skip older dates
       const key = `${r.majorCategory}|${r.certType}|${leafName}`;
+      
+      // Since records now might contain multiple sub-categories with same leafName but different path,
+      // it's safer to sum them or just group them by the same key
       if (!itemMap[key]) {
         itemMap[key] = {
           name: leafName,
           majorCategory: r.majorCategory,
           certType: r.certType,
           depth1: r.depth1,
-          value: r.count,
+          value: 0,
         };
       }
+      itemMap[key].value += r.count;
     });
 
-    // Sort by value descending and take top 30
     const topWords = Object.values(itemMap)
       .filter(w => w.value > 0)
       .sort((a, b) => b.value - a.value)
