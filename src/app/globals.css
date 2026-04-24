@@ -102,7 +102,8 @@ header {
 }
 
 .tab-btn {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,12 +235,14 @@ header {
 }
 
 .summary-table th {
-  padding: 0.75rem 1.25rem;
+  width: 25%;
+  padding: 0.75rem 0.5rem;
   text-align: center;
   font-weight: 600;
   color: #fff;
   background: linear-gradient(135deg, #475569, #334155);
   border: none;
+  white-space: nowrap;
 }
 
 .summary-table th:first-child { border-radius: 10px 0 0 10px; }
