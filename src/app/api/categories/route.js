@@ -128,10 +128,19 @@ export async function GET(request) {
 
     const hierarchy = convertToArray(treeMap);
 
-    // === 3. Overall totals ===
-    const grandTotal = records.reduce((sum, r) => sum + r.count, 0);
-    const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
-    const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
+    // === 4. Lifetime Totals (Latest Snapshot) ===
+    const latestSnapshot = await prisma.dataRecord.groupBy({
+      by: ['majorCategory'],
+      _sum: { count: true },
+      where: { recordDate: latestRecord.recordDate }
+    });
+
+    const lifetimeTotals = {
+      total: latestSnapshot.reduce((acc, curr) => acc + (curr._sum.count || 0), 0),
+      전기용품: latestSnapshot.find(s => s.majorCategory === '전기용품')?._sum.count || 0,
+      생활용품: latestSnapshot.find(s => s.majorCategory === '생활용품')?._sum.count || 0,
+      어린이제품: latestSnapshot.find(s => s.majorCategory === '어린이제품')?._sum.count || 0,
+    };
 
     return NextResponse.json({
       success: true,
@@ -141,6 +150,7 @@ export async function GET(request) {
         grandTotal,
         totalCertification,
         totalConfirmation,
+        lifetimeTotals,
         lastUpdated: latestRecord.recordDate.toISOString()
       }
     });

@@ -270,6 +270,29 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Lifetime Totals Overview */}
+        <section className="glass-card lifetime-overview animate-slide-up stagger-1" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+          <h3 className="section-title" style={{ marginBottom: '1rem', color: 'var(--text-primary)', fontSize: '1.1rem' }}>전체 인증 현황 (누계)</h3>
+          <div className="lifetime-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+            <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>통합</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-electric)' }}>{data?.lifetimeTotals?.total?.toLocaleString()}</div>
+            </div>
+            <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>전기용품</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-electric)' }}>{data?.lifetimeTotals?.전기용품?.toLocaleString()}</div>
+            </div>
+            <div className="lifetime-item" style={{ textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>생활용품</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-life)' }}>{data?.lifetimeTotals?.생활용품?.toLocaleString()}</div>
+            </div>
+            <div className="lifetime-item" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>어린이제품</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-child)' }}>{data?.lifetimeTotals?.어린이제품?.toLocaleString()}</div>
+            </div>
+          </div>
+        </section>
+
         {/* Summary Table */}
         <section className="glass-card summary-section animate-slide-up stagger-1">
           <h3 className="section-title">
