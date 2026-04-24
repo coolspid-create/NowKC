@@ -30,7 +30,6 @@ const TREEMAP_COLORS = [
 
 export default function RecallDashboard() {
   const [stats, setStats] = useState(null);
-  const [recent, setRecent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('all');
 
@@ -47,12 +46,8 @@ export default function RecallDashboard() {
         const d = new Date(); d.setDate(d.getDate()-90);
         statsUrl += `?date_from=${d.toISOString().slice(0,10)}`;
       }
-      const [sRes, rRes] = await Promise.all([
-        fetch(statsUrl).then(r=>r.json()),
-        fetch('/api/recall/recent?days=7&limit=20').then(r=>r.json()),
-      ]);
+      const sRes = await fetch(statsUrl).then(r=>r.json());
       if (sRes.success) setStats(sRes.data);
-      if (rRes.success) setRecent(rRes.data);
     } catch(e) { console.error(e); }
     setLoading(false);
   }
@@ -359,47 +354,7 @@ export default function RecallDashboard() {
         </div>
       )}
 
-      {/* Recent Recalls */}
-      {recent?.data && recent.data.length > 0 && (
-        <section className="glass-card animate-slide-up" style={{ padding:'2rem' }}>
-          <h3 className="section-title">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline', verticalAlign:'middle', marginRight:'8px' }}>
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            최근 7일 리콜 알림
-            <span style={{ fontSize:'0.85rem', fontWeight:400, color:'var(--text-muted)', marginLeft:'10px' }}>
-              ({recent.meta?.count || recent.data.length}건)
-            </span>
-          </h3>
-          <div className="recall-card-grid">
-            {recent.data.slice(0, 12).map((item) => (
-              <a key={item.id} href={item.source_url || '#'} target="_blank" rel="noopener noreferrer"
-                className="recall-card">
-                <div className="recall-card-img-wrap">
-                  {item.image_1 ? (
-                    <img src={item.image_1} alt={item.product_name || ''} className="recall-card-img" loading="lazy"/>
-                  ) : (
-                    <div className="recall-card-img-placeholder">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    </div>
-                  )}
-                  <span className={`recall-source-badge recall-source-${item.source?.toLowerCase().replace(/[^a-z]/g,'')}`}>
-                    {SOURCE_LABELS[item.source] || item.source}
-                  </span>
-                </div>
-                <div className="recall-card-body">
-                  <div className="recall-card-title">{item.product_name || '제품명 미상'}</div>
-                  {item.brand_name && <div className="recall-card-brand">{item.brand_name}</div>}
-                  <div className="recall-card-meta">
-                    {item.hazard_type && <span className="recall-hazard-tag">{item.hazard_type}</span>}
-                    <span className="recall-date">{item.published_date}</span>
-                  </div>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
+
     </div>
   );
 }
