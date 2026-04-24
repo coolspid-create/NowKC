@@ -99,7 +99,7 @@ export default function RecallDashboard() {
     return stats.by_category_level2.sort((a,b) => b.count - a.count);
   }, [stats]);
 
-  if (!stats && loading) {
+  if (loading) {
     return (
       <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'60vh', flexDirection:'column', gap:'1rem' }}>
         <div className="pulse" style={{ width:'12px', height:'12px', background:'#f97316', borderRadius:'50%' }}></div>
@@ -107,7 +107,15 @@ export default function RecallDashboard() {
       </div>
     );
   }
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'60vh', flexDirection:'column', gap:'1rem' }}>
+        <div style={{ color:'#ef4444', fontSize:'1.2rem', fontWeight:600 }}>데이터를 불러오지 못했습니다.</div>
+        <div style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>API 서버 문제이거나 환경 변수(API 키)가 설정되지 않았을 수 있습니다. 서버를 재시작해 보세요.</div>
+        <button onClick={fetchData} style={{ marginTop:'1rem', padding:'0.5rem 1rem', background:'#f97316', color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer' }}>다시 시도</button>
+      </div>
+    );
+  }
 
   const hazardChartHeight = Math.max(300, hazardData.length * 36 + 60);
 
