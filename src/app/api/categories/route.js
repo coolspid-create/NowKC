@@ -130,7 +130,12 @@ export async function GET(request) {
 
     const hierarchy = convertToArray(treeMap);
 
-    // === 4. Lifetime Totals (Latest Snapshot) ===
+    // === 3. Overall totals for selected period ===
+    const grandTotal = records.reduce((sum, r) => sum + r.count, 0);
+    const totalCertification = records.filter(r => r.certType === '안전인증').reduce((sum, r) => sum + r.count, 0);
+    const totalConfirmation = records.filter(r => r.certType === '안전확인').reduce((sum, r) => sum + r.count, 0);
+
+    // === 4. Lifetime Totals (Latest Snapshot - independent of period) ===
     const latestSnapshot = await prisma.dataRecord.groupBy({
       by: ['majorCategory'],
       _sum: { count: true },
