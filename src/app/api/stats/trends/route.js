@@ -5,10 +5,18 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const majorCategory = searchParams.get('major');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     const where = {};
     if (majorCategory && majorCategory !== 'ALL') {
       where.majorCategory = majorCategory;
+    }
+
+    if (startDateParam || endDateParam) {
+      where.recordDate = {};
+      if (startDateParam) where.recordDate.gte = new Date(startDateParam + 'T00:00:00.000Z');
+      if (endDateParam) where.recordDate.lte = new Date(endDateParam + 'T00:00:00.000Z');
     }
 
     // Group by recordDate and majorCategory
@@ -28,7 +36,7 @@ export async function GET(request) {
 
     rawData.forEach(item => {
       const d = new Date(item.recordDate);
-      const dateStr = `${d.getFullYear().toString().slice(2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+      const dateStr = `${d.getUTCFullYear().toString().slice(2)}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`;
       
       if (!dateMap[dateStr]) {
         dateMap[dateStr] = { name: dateStr, total: 0, 전기용품: 0, 생활용품: 0, 어린이제품: 0 };

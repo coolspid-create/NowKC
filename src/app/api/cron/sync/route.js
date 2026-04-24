@@ -43,7 +43,8 @@ export async function GET(request) {
       const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
       
       const [yy, mm, dd] = sheetName.split('.').map(s => parseInt(s, 10));
-      const recordDate = new Date(2000 + yy, mm - 1, dd, 0, 0, 0, 0);
+      // Store as UTC midnight
+      const recordDate = new Date(Date.UTC(2000 + yy, mm - 1, dd));
 
       let insertedCount = 0;
       let skippedCount = 0;

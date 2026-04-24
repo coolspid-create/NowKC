@@ -11,7 +11,7 @@ export async function GET(request) {
 
     const dateList = dates.map(d => {
       const date = new Date(d.recordDate);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
     });
 
     return NextResponse.json({ success: true, data: dateList });
