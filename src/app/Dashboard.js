@@ -247,6 +247,9 @@ export default function Dashboard() {
             >
               전체
             </button>
+            <div style={{ position: 'absolute', bottom: '-18px', right: '4px', fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.8 }}>
+              SafetyKorea 등록 날짜 기준 통계입니다.
+            </div>
           </div>
         )}
       </div>
