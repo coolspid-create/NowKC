@@ -93,20 +93,27 @@ export default function RecallDashboard({ startDate, endDate }) {
   }, [stats, seriousCount]);
 
   const monthlyData = useMemo(() => {
-    if (!stats?.by_month) return [];
-    return stats.by_month.map(m => ({ name: m.month.slice(2), count: m.count }));
+    if (!stats?.by_month || stats.by_month.length === 0) return [];
+    return stats.by_month.map(m => ({ 
+      name: m.month.length > 5 ? m.month.slice(2) : m.month, 
+      count: m.count 
+    }));
   }, [stats]);
 
   const sourceData = useMemo(() => {
     if (!stats?.by_source) return [];
-    return stats.by_source.map(s => ({
-      name: SOURCE_LABELS[s.source] || s.source, count: s.count, source: s.source
-    }));
+    return stats.by_source
+      .filter(s => s.count > 0)
+      .map(s => ({
+        name: SOURCE_LABELS[s.source] || s.source, count: s.count, source: s.source
+      }))
+      .sort((a,b) => b.count - a.count);
   }, [stats]);
 
   const hfData = useMemo(() => {
     if (!stats?.by_hf_code) return [];
     return stats.by_hf_code
+      .filter(d => d.count > 0)
       .sort((a,b) => b.count - a.count).slice(0, 10)
       .map(d => ({ name: HF_CODE_LABELS[d.hf_code] || d.hf_code, count: d.count }));
   }, [stats]);
@@ -114,21 +121,26 @@ export default function RecallDashboard({ startDate, endDate }) {
   const dtData = useMemo(() => {
     if (!stats?.by_dt_code) return [];
     return stats.by_dt_code
+      .filter(d => d.count > 0)
       .sort((a,b) => b.count - a.count).slice(0, 10)
       .map(d => ({ name: DT_CODE_LABELS[d.dt_code] || d.dt_code, count: d.count }));
   }, [stats]);
 
   const severityData = useMemo(() => {
     if (!stats?.by_severity) return [];
-    return stats.by_severity.map(s => ({
-      name: SEVERITY_LABELS[s.severity] || `Level ${s.severity}`,
-      value: s.count, severity: s.severity
-    }));
+    return stats.by_severity
+      .filter(s => s.count > 0)
+      .map(s => ({
+        name: SEVERITY_LABELS[s.severity] || `Level ${s.severity}`,
+        value: s.count, severity: s.severity
+      }));
   }, [stats]);
 
   const categoryData = useMemo(() => {
     if (!stats?.by_category_level2) return [];
-    return stats.by_category_level2.sort((a,b) => b.count - a.count);
+    return stats.by_category_level2
+      .filter(c => c.count > 0)
+      .sort((a,b) => b.count - a.count);
   }, [stats]);
 
   const productGroupTable = useMemo(() => {
@@ -169,6 +181,16 @@ export default function RecallDashboard({ startDate, endDate }) {
         <div style={{ color:'#ef4444', fontSize:'1.2rem', fontWeight:600 }}>데이터를 불러오지 못했습니다.</div>
         <div style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>API 서버 문제이거나 환경 변수(API 키)가 설정되지 않았을 수 있습니다. 서버를 재시작해 보세요.</div>
         <button onClick={fetchData} style={{ marginTop:'1rem', padding:'0.5rem 1rem', background:'#f97316', color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer' }}>다시 시도</button>
+      </div>
+    );
+  }
+
+  if (stats.total_recalls === 0) {
+    return (
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'60vh', flexDirection:'column', gap:'1rem' }}>
+        <div style={{ color:'var(--text-secondary)', fontSize:'1.2rem', fontWeight:600 }}>조회된 리콜 데이터가 없습니다.</div>
+        <div style={{ color:'var(--text-muted)', fontSize:'0.9rem' }}>조회 기간을 넓혀보거나 다른 날짜를 선택해 보세요.</div>
+        <button onClick={fetchData} style={{ marginTop:'1rem', padding:'0.5rem 1rem', background:'#f97316', color:'#fff', border:'none', borderRadius:'8px', cursor:'pointer' }}>새로고침</button>
       </div>
     );
   }
