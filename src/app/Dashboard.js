@@ -78,7 +78,7 @@ export default function Dashboard() {
 
   // Fetch available dates on mount
   useEffect(() => {
-    fetch('/api/dates').then(r => r.json()).then(res => {
+    fetch('/api/dates', { cache: 'no-store' }).then(r => r.json()).then(res => {
       if (res.success && res.data.length > 0) {
         setAvailableDates(res.data);
         const dates = res.data;
@@ -108,9 +108,9 @@ export default function Dashboard() {
       const params = activeTab !== 'ALL' ? `?major=${encodeURIComponent(activeTab)}${dateParams}` : `?${dateParams.substring(1)}`;
       
       const [catRes, wordRes, trendRes] = await Promise.all([
-        fetch(`/api/categories${params}`).then(r => r.json()),
-        fetch(`/api/stats/wordcloud${params}`).then(r => r.json()),
-        fetch(`/api/stats/trends${params}`).then(r => r.json()),
+        fetch(`/api/categories${params}`, { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/api/stats/wordcloud${params}`, { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/api/stats/trends${params}`, { cache: 'no-store' }).then(r => r.json()),
       ]);
       
       if (catRes.success) {
