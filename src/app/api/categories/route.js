@@ -125,9 +125,10 @@ export async function GET(request) {
         totalCertification,
         totalConfirmation,
         lifetimeTotals,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: latestRecord.recordDate
       }
     });
+
   } catch (error) {
     console.error(error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

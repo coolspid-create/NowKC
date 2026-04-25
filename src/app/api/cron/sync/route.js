@@ -1,4 +1,8 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/db';
+
 const API_KEY = '3d6d1a7f-3792-4eeb-9d75-b2f68a59ac38';
+
 const BASE_URL = 'http://www.safetykorea.kr/openapi/api/cert/certificationList.json';
 
 function parseMajor(certDiv) {
