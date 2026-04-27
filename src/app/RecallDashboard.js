@@ -297,6 +297,8 @@ export default function RecallDashboard({ startDate, endDate }) {
                 stroke="#fff" 
                 strokeWidth={2}
                 animationDuration={500}
+                label={({ name, count, percent }) => percent > 0.04 ? `${count}` : null}
+                labelLine={false}
               >
                 {sourceData.map((_, i) => (
                   <Cell key={`cell-${i}`} fill={SOURCE_COLORS[i % SOURCE_COLORS.length]} />
@@ -464,12 +466,32 @@ export default function RecallDashboard({ startDate, endDate }) {
                   );
                 })}
               </tbody>
+              <tfoot style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
+                <tr>
+                  <td style={{ padding:'12px 8px', textAlign:'left' }}>합계</td>
+                  {productGroupTable.targetGroups.map(g => {
+                    const colTotal = productGroupTable.countries.reduce((sum, c) => sum + productGroupTable.data[c][g], 0);
+                    return <td key={g} style={{ padding:'12px 8px' }}>{colTotal}</td>;
+                  })}
+                  <td style={{ padding:'12px 8px' }}>
+                    {productGroupTable.countries.reduce((sum, c) => {
+                      const d = productGroupTable.data[c];
+                      const catSum = productGroupTable.targetGroups.reduce((s, g) => s + d[g], 0);
+                      return sum + Math.max(0, d.total_actual - catSum);
+                    }, 0)}
+                  </td>
+                  <td style={{ padding:'12px 8px', color:'#f97316' }}>
+                    {productGroupTable.countries.reduce((sum, c) => sum + productGroupTable.data[c].total_actual, 0)}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
             {productGroupTable.countries.length === 0 && (
               <div style={{ padding:'2rem', textAlign:'center', color:'var(--text-muted)' }}>데이터가 없습니다.</div>
             )}
           </div>
           <div style={{ marginTop: '1.5rem', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            <div>* <strong>합계:</strong> 각 항목별 단순 합계이며, 중복 분류 제품은 중복으로 계산될 수 있습니다.</div>
             <div>* <strong>기타:</strong> 위 3개 주요 품목군 외의 카테고리에 속하는 리콜 건수입니다.</div>
             <div>* 일부 리콜 제품은 여러 품목군에 중복 분류될 수 있어, 품목별 합계가 실제 총계보다 많을 수 있습니다.</div>
             <div style={{ marginTop: '4px' }}>데이터 출처: Recall Hub — 13개국 정부기관 리콜 데이터 통합 (실시간)</div>
