@@ -153,21 +153,43 @@ export default function RecallDashboard({ startDate, endDate }) {
     
     // Initialize with all countries from SOURCE_LABELS
     Object.values(SOURCE_LABELS).forEach(label => {
-      dataByCountry[label] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
+      dataByCountry[label] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0, 'total_actual': 0 };
     });
 
+    // 1. Map categorized counts from by_product_group_country
     if (stats?.by_product_group_country) {
       stats.by_product_group_country.forEach(d => {
+        if (!dataByCountry[d.country]) {
+          dataByCountry[d.country] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0, 'total_actual': 0 };
+        }
         if (targetGroups.includes(d.product_group)) {
-          if (!dataByCountry[d.country]) {
-            dataByCountry[d.country] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0 };
-          }
           dataByCountry[d.country][d.product_group] += d.count;
         }
       });
     }
 
-    const countries = Object.keys(dataByCountry).sort((a, b) => a.localeCompare(b, 'ko'));
+    // 2. Map ground truth totals from by_source
+    if (stats?.by_source) {
+      stats.by_source.forEach(s => {
+        const label = SOURCE_LABELS[s.source] || s.source;
+        if (!dataByCountry[label]) {
+          dataByCountry[label] = { '전기용품': 0, '생활용품': 0, '어린이제품': 0, 'total_actual': 0 };
+        }
+        dataByCountry[label].total_actual += Number(s.count || 0);
+      });
+    }
+
+    // Filter countries that have at least one recall (either categorized or in total)
+    const countries = Object.keys(dataByCountry)
+      .filter(c => {
+        const d = dataByCountry[c];
+        return d.total_actual > 0 || d['전기용품'] > 0 || d['생활용품'] > 0 || d['어린이제품'] > 0;
+      })
+      .sort((a, b) => {
+        // Sort by total_actual descending
+        return dataByCountry[b].total_actual - dataByCountry[a].total_actual;
+      });
+
     return { countries, data: dataByCountry, targetGroups };
   }, [stats]);
 
@@ -416,13 +438,16 @@ export default function RecallDashboard({ startDate, endDate }) {
                 <tr style={{ borderBottom:'2px solid var(--border-color)', color:'var(--text-secondary)', fontWeight:600 }}>
                   <th style={{ padding:'12px 8px', textAlign:'left' }}>국가</th>
                   {productGroupTable.targetGroups.map(g => <th key={g} style={{ padding:'12px 8px' }}>{g}</th>)}
-                  <th style={{ padding:'12px 8px', color:'#f97316' }}>소계</th>
+                  <th style={{ padding:'12px 8px' }}>기타</th>
+                  <th style={{ padding:'12px 8px', color:'#f97316' }}>총계</th>
                 </tr>
               </thead>
               <tbody>
                 {productGroupTable.countries.map(country => {
                   const data = productGroupTable.data[country];
-                  const total = productGroupTable.targetGroups.reduce((s, g) => s + data[g], 0);
+                  const categorizedSum = productGroupTable.targetGroups.reduce((s, g) => s + data[g], 0);
+                  const other = Math.max(0, data.total_actual - categorizedSum);
+                  
                   return (
                     <tr key={country} style={{ borderBottom:'1px solid var(--border-color)' }}>
                       <td style={{ padding:'12px 8px', textAlign:'left', fontWeight:500, color:'var(--text-primary)' }}>{country}</td>
@@ -431,7 +456,10 @@ export default function RecallDashboard({ startDate, endDate }) {
                           {data[g]}
                         </td>
                       ))}
-                      <td style={{ padding:'12px 8px', fontWeight:700, color:'#f97316' }}>{total}</td>
+                      <td style={{ padding:'12px 8px', color: other > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {other}
+                      </td>
+                      <td style={{ padding:'12px 8px', fontWeight:700, color:'#f97316' }}>{data.total_actual}</td>
                     </tr>
                   );
                 })}
@@ -441,8 +469,10 @@ export default function RecallDashboard({ startDate, endDate }) {
               <div style={{ padding:'2rem', textAlign:'center', color:'var(--text-muted)' }}>데이터가 없습니다.</div>
             )}
           </div>
-          <div style={{ marginTop: '1.5rem', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>
-            데이터 출처: Recall Hub — 13개국 정부기관 리콜 데이터 통합 (실시간)
+          <div style={{ marginTop: '1.5rem', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            <div>* <strong>기타:</strong> 위 3개 주요 품목군 외의 카테고리에 속하는 리콜 건수입니다.</div>
+            <div>* 일부 리콜 제품은 여러 품목군에 중복 분류될 수 있어, 품목별 합계가 실제 총계보다 많을 수 있습니다.</div>
+            <div style={{ marginTop: '4px' }}>데이터 출처: Recall Hub — 13개국 정부기관 리콜 데이터 통합 (실시간)</div>
           </div>
         </div>
       </div>
