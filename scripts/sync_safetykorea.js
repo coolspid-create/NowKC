@@ -13,7 +13,6 @@ function parseMajor(certDiv) {
   if (target.includes('생활용품')) return '생활용품';
   if (target.includes('어린이제품')) return '어린이제품';
   
-  // Fallback to the first part
   const first = parts[0];
   if (first.includes('전기용품')) return '전기용품';
   if (first.includes('생활용품')) return '생활용품';
@@ -34,9 +33,9 @@ function parseCertType(certDiv) {
 }
 
 async function syncForDate(targetDate) {
-  const url = `${BASE_URL}?conditionKey=signDate&conditionValue=${targetDate}`;
+  const url = `${BASE_URL}?conditionKey=certDate&conditionValue=${targetDate}`;
   
-  console.log(`🚀 [SafetyKorea Sync] Fetching for ${targetDate}...`);
+  console.log(`🚀 [SafetyKorea Sync] Fetching for ${targetDate} using certDate...`);
   try {
     const res = await fetch(url, { headers: { 'AuthKey': API_KEY } });
     const result = await res.json();
@@ -51,7 +50,7 @@ async function syncForDate(targetDate) {
     
     if (items.length === 0) return;
 
-    const newStats = {};
+    const stats = {};
     items.forEach(item => {
       const major = parseMajor(item.certDiv);
       const certType = parseCertType(item.certDiv);
@@ -61,61 +60,27 @@ async function syncForDate(targetDate) {
       const d3 = catParts[2] || '';
 
       const key = `${major}|${certType}|${d1}|${d2}|${d3}`;
-      newStats[key] = (newStats[key] || 0) + 1;
+      stats[key] = (stats[key] || 0) + 1;
     });
 
-    const currentRecordDate = new Date(targetDate.slice(0,4) + '-' + targetDate.slice(4,6) + '-' + targetDate.slice(6,8) + 'T00:00:00.000Z');
+    const recordDate = new Date(targetDate.slice(0,4) + '-' + targetDate.slice(4,6) + '-' + targetDate.slice(6,8) + 'T00:00:00.000Z');
     
-    const latestPrevRecord = await prisma.dataRecord.findFirst({
-      where: { recordDate: { lt: currentRecordDate } },
-      orderBy: { recordDate: 'desc' },
-      select: { recordDate: true }
-    });
-
-    if (!latestPrevRecord) {
-      console.log('ℹ️ No previous records found. Storing new registrations as totals.');
-      for (const [key, count] of Object.entries(newStats)) {
-        const [major, type, d1, d2, d3] = key.split('|');
-        await prisma.dataRecord.create({
-          data: {
+    console.log(`💾 Saving categories to DB for ${targetDate}...`);
+    for (const [key, count] of Object.entries(stats)) {
+      const [major, type, d1, d2, d3] = key.split('|');
+      await prisma.dataRecord.upsert({
+        where: {
+          majorCategory_certType_depth1_depth2_depth3_recordDate: {
             majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3,
-            count: count, recordDate: currentRecordDate
+            recordDate: recordDate
           }
-        });
-      }
-    } else {
-      console.log(`📊 Inheriting totals from ${latestPrevRecord.recordDate.toISOString()}...`);
-      const prevRecords = await prisma.dataRecord.findMany({
-        where: { recordDate: latestPrevRecord.recordDate }
+        },
+        update: { count },
+        create: {
+          majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3,
+          count, recordDate: recordDate
+        }
       });
-
-      const totalMap = {};
-      prevRecords.forEach(r => {
-        const key = `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2}|${r.depth3}`;
-        totalMap[key] = r.count;
-      });
-
-      Object.entries(newStats).forEach(([key, count]) => {
-        totalMap[key] = (totalMap[key] || 0) + count;
-      });
-
-      console.log(`💾 Saving ${Object.keys(totalMap).length} categories to DB...`);
-      for (const [key, count] of Object.entries(totalMap)) {
-        const [major, type, d1, d2, d3] = key.split('|');
-        await prisma.dataRecord.upsert({
-          where: {
-            majorCategory_certType_depth1_depth2_depth3_recordDate: {
-              majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3,
-              recordDate: currentRecordDate
-            }
-          },
-          update: { count },
-          create: {
-            majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3,
-            count, recordDate: currentRecordDate
-          }
-        });
-      }
     }
     console.log(`🎉 Sync for ${targetDate} complete!`);
   } catch (error) {
@@ -124,10 +89,33 @@ async function syncForDate(targetDate) {
 }
 
 async function main() {
-  const dates = ['20260424']; // Add more dates here if needed
-  for (const date of dates) {
-    await syncForDate(date);
+  // Auto-sync from latest date to today
+  const latestRecord = await prisma.dataRecord.findFirst({
+    orderBy: { recordDate: 'desc' },
+    select: { recordDate: true }
+  });
+
+  let startDate = new Date();
+  if (latestRecord) {
+    startDate = new Date(latestRecord.recordDate);
+    startDate.setUTCDate(startDate.getUTCDate() + 1);
+  } else {
+    startDate.setUTCDate(startDate.getUTCDate() - 1);
   }
+
+  const today = new Date();
+  let current = new Date(startDate);
+
+  while (current <= today) {
+    const yyyy = current.getUTCFullYear();
+    const mm = String(current.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(current.getUTCDate()).padStart(2, '0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+    
+    await syncForDate(dateStr);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
   await prisma.$disconnect();
 }
 

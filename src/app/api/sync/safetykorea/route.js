@@ -8,17 +8,13 @@ function parseMajor(certDiv) {
   if (!certDiv) return '기타';
   const parts = certDiv.split('>');
   const target = parts.length > 1 ? parts[1] : parts[0];
-  
   if (target.includes('전기용품')) return '전기용품';
   if (target.includes('생활용품')) return '생활용품';
   if (target.includes('어린이제품')) return '어린이제품';
-  
-  // Fallback to the first part
   const first = parts[0];
   if (first.includes('전기용품')) return '전기용품';
   if (first.includes('생활용품')) return '생활용품';
   if (first.includes('어린이제품')) return '어린이제품';
-  
   return first.trim();
 }
 
@@ -39,9 +35,9 @@ export async function GET(request) {
     const targetDate = searchParams.get('date'); // YYYYMMDD
     if (!targetDate) return NextResponse.json({ success: false, error: 'Date is required' }, { status: 400 });
 
-    const url = `${BASE_URL}?conditionKey=signDate&conditionValue=${targetDate}`;
+    const url = `${BASE_URL}?conditionKey=certDate&conditionValue=${targetDate}`;
     
-    console.log(`[SafetyKorea Sync] Fetching for ${targetDate}...`);
+    console.log(`[SafetyKorea Sync API] Fetching for ${targetDate} using certDate...`);
     const res = await fetch(url, { headers: { 'AuthKey': API_KEY } });
     const result = await res.json();
 
@@ -54,8 +50,7 @@ export async function GET(request) {
       return NextResponse.json({ success: true, message: 'No data for this date', count: 0 });
     }
 
-    // 1. Group new items from API
-    const newStats = {}; // key -> count
+    const stats = {};
     items.forEach(item => {
       const major = parseMajor(item.certDiv);
       const certType = parseCertType(item.certDiv);
@@ -63,94 +58,34 @@ export async function GET(request) {
       const d1 = catParts[0] || '미분류';
       const d2 = catParts[1] || '';
       const d3 = catParts[2] || '';
-
       const key = `${major}|${certType}|${d1}|${d2}|${d3}`;
-      newStats[key] = (newStats[key] || 0) + 1;
+      stats[key] = (stats[key] || 0) + 1;
     });
 
-    // 2. Get Previous Total from DB
-    // We need to find the latest record date before our targetDate
-    const currentRecordDate = new Date(targetDate.slice(0,4) + '-' + targetDate.slice(4,6) + '-' + targetDate.slice(6,8) + 'T00:00:00.000Z');
+    const recordDate = new Date(targetDate.slice(0,4) + '-' + targetDate.slice(4,6) + '-' + targetDate.slice(6,8) + 'T00:00:00.000Z');
     
-    const latestPrevRecord = await prisma.dataRecord.findFirst({
-      where: { recordDate: { lt: currentRecordDate } },
-      orderBy: { recordDate: 'desc' },
-      select: { recordDate: true }
-    });
-
-    if (!latestPrevRecord) {
-      // If no previous data, we can only store the new registrations (as total)
-      // This might not be accurate if we don't have the baseline.
-      console.log('[SafetyKorea Sync] No previous records found. Storing new registrations as totals.');
-      
-      for (const [key, count] of Object.entries(newStats)) {
-        const [major, type, d1, d2, d3] = key.split('|');
-        await prisma.dataRecord.create({
-          data: {
-            majorCategory: major,
-            certType: type,
-            depth1: d1,
-            depth2: d2,
-            depth3: d3,
-            count: count,
-            recordDate: currentRecordDate
+    for (const [key, count] of Object.entries(stats)) {
+      const [major, type, d1, d2, d3] = key.split('|');
+      await prisma.dataRecord.upsert({
+        where: {
+          majorCategory_certType_depth1_depth2_depth3_recordDate: {
+            majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3, recordDate
           }
-        });
-      }
-    } else {
-      // Inherit totals and add new ones
-      const prevRecords = await prisma.dataRecord.findMany({
-        where: { recordDate: latestPrevRecord.recordDate }
+        },
+        update: { count },
+        create: { majorCategory: major, certType: type, depth1: d1, depth2: d2, depth3: d3, count, recordDate }
       });
-
-      const totalMap = {}; // key -> count
-      prevRecords.forEach(r => {
-        const key = `${r.majorCategory}|${r.certType}|${r.depth1}|${r.depth2}|${r.depth3}`;
-        totalMap[key] = r.count;
-      });
-
-      // Update with new stats
-      Object.entries(newStats).forEach(([key, count]) => {
-        totalMap[key] = (totalMap[key] || 0) + count;
-      });
-
-      // Save to DB
-      for (const [key, count] of Object.entries(totalMap)) {
-        const [major, type, d1, d2, d3] = key.split('|');
-        await prisma.dataRecord.upsert({
-          where: {
-            majorCategory_certType_depth1_depth2_depth3_recordDate: {
-              majorCategory: major,
-              certType: type,
-              depth1: d1,
-              depth2: d2,
-              depth3: d3,
-              recordDate: currentRecordDate
-            }
-          },
-          update: { count },
-          create: {
-            majorCategory: major,
-            certType: type,
-            depth1: d1,
-            depth2: d2,
-            depth3: d3,
-            count,
-            recordDate: currentRecordDate
-          }
-        });
-      }
     }
 
     return NextResponse.json({ 
       success: true, 
       message: `Sync complete for ${targetDate}`, 
       newItems: items.length,
-      categories: Object.keys(newStats).length
+      categories: Object.keys(stats).length
     });
 
   } catch (error) {
-    console.error('SafetyKorea Sync Error:', error);
+    console.error('SafetyKorea Sync API Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

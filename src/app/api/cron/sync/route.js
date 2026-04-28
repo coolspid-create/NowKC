@@ -57,9 +57,9 @@ export async function GET(request) {
     let daysSynced = 0;
 
     while (currentDate <= today) {
-      const yyyy = currentDate.getFullYear();
-      const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(currentDate.getDate()).padStart(2, '0');
+      const yyyy = currentDate.getUTCFullYear();
+      const mm = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(currentDate.getUTCDate()).padStart(2, '0');
       const dateStr = `${yyyy}${mm}${dd}`;
 
       console.log(`[Sync] Fetching for ${dateStr}...`);
@@ -84,6 +84,7 @@ export async function GET(request) {
         const recordDate = new Date(currentDate);
         recordDate.setUTCHours(0,0,0,0);
 
+        console.log(`[Sync] Found ${items.length} items for ${dateStr}. Saving to DB...`);
         for (const [key, count] of Object.entries(stats)) {
           const [major, type, d1, d2, d3] = key.split('|');
           await prisma.dataRecord.upsert({
@@ -100,7 +101,7 @@ export async function GET(request) {
         daysSynced++;
       }
       
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
 
     return NextResponse.json({ 
