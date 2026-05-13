@@ -8,8 +8,8 @@ import {
 
 const SOURCE_LABELS = {
   US_CPSC: '미국', EU: '유럽연합', AU: '호주', CA: '캐나다', CN: '중국',
-  EN: '영국', FR: '프랑스', GE: '독일', JP_METI: '일본(METI)',
-  JP_RECALLPLUS: '일본(Recall+)', NZ: '뉴질랜드', OECD: 'OECD', US_NHTSA: '미국(NHTSA)'
+  EN: '영국', FR: '프랑스', GE: '독일', JP_METI: '일본',
+  JP_RECALLPLUS: '일본', NZ: '뉴질랜드', OECD: 'OECD', US_NHTSA: '미국(NHTSA)'
 };
 
 const SOURCE_COLORS = [
@@ -38,7 +38,8 @@ const DT_CODE_LABELS = {
   'DT.OTHER.NEARMI': '기타 아차사고',
   'DT.THERMAL.BURN': '화상',
   'DT.ASPHYX.STRANG': '끈 졸림',
-  'DT.ELECTRIC.SHOCK': '감전'
+  'DT.ELECTRIC.SHOCK': '감전',
+  'DT.BODY.SENSE': '감각 기관 손상'
 };
 
 const HF_CODE_LABELS = {
@@ -102,14 +103,19 @@ export default function RecallDashboard({ startDate, endDate }) {
 
   const sourceData = useMemo(() => {
     if (!stats?.by_source) return [];
-    return stats.by_source
-      .map(s => ({
-        name: SOURCE_LABELS[s.source] || s.source, 
-        count: Number(s.count || 0), 
-        source: s.source
+    const aggregated = {};
+    stats.by_source.forEach(s => {
+      const name = SOURCE_LABELS[s.source] || s.source;
+      if (!aggregated[name]) aggregated[name] = 0;
+      aggregated[name] += Number(s.count || 0);
+    });
+    return Object.keys(aggregated)
+      .map(name => ({
+        name,
+        count: aggregated[name]
       }))
       .filter(s => s.count > 0)
-      .sort((a,b) => b.count - a.count);
+      .sort((a, b) => b.count - a.count);
   }, [stats]);
 
   const hfData = useMemo(() => {
