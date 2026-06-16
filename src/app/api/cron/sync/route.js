@@ -46,21 +46,31 @@ export async function GET(request) {
     let startDate = new Date();
     if (latestRecord) {
       startDate = new Date(latestRecord.recordDate);
-      startDate.setDate(startDate.getDate() + 1); // Start from the next day
+      startDate.setUTCDate(startDate.getUTCDate() + 1); // Start from the next day in UTC
     } else {
-      startDate.setDate(startDate.getDate() - 1); // Default to yesterday if empty
+      startDate.setUTCDate(startDate.getUTCDate() - 1); // Default to yesterday if empty
     }
 
-    const today = new Date();
+    // Get today's date in KST (UTC + 9)
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const todayKst = new Date(Date.now() + kstOffset);
+    const todayStr = `${todayKst.getUTCFullYear()}${String(todayKst.getUTCMonth() + 1).padStart(2, '0')}${String(todayKst.getUTCDate()).padStart(2, '0')}`;
+
     let currentDate = new Date(startDate);
+    currentDate.setUTCHours(0,0,0,0);
+    
     let totalNewRecords = 0;
     let daysSynced = 0;
 
-    while (currentDate <= today) {
+    while (true) {
       const yyyy = currentDate.getUTCFullYear();
       const mm = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
       const dd = String(currentDate.getUTCDate()).padStart(2, '0');
       const dateStr = `${yyyy}${mm}${dd}`;
+
+      if (dateStr > todayStr) {
+        break;
+      }
 
       console.log(`[Sync] Fetching for ${dateStr}...`);
       const url = `${BASE_URL}?conditionKey=certDate&conditionValue=${dateStr}`;
