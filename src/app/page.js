@@ -19,6 +19,7 @@ export default function Page() {
             *제품안전, 태양광 데이터의 통합 분석 통계를 제공합니다.
           </div>
         </div>
+
       </header>
       <AppContainer />
     </main>

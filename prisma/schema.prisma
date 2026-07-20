@@ -19,3 +19,14 @@ model DataRecord {
 
   @@unique([majorCategory, certType, depth1, depth2, depth3, recordDate])
 }
+
+model VisitLog {
+  id        String   @id @default(uuid())
+  path      String   @default("/")
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+

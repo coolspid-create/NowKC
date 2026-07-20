@@ -1,0 +1,95 @@
+{
+  "year": 2025,
+  "fires": 0,
+  "deaths": 0,
+  "injuries": 0,
+  "propertyDamage": 0,
+  "mainCause": "전기적요인",
+  "electricalRatio": 78,
+  "monthly": [
+    {
+      "month": 1,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 2,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 3,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 4,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 5,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 6,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 7,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 8,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 9,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 10,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 11,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    },
+    {
+      "month": 12,
+      "fires": 0,
+      "deaths": 0,
+      "injuries": 0,
+      "propertyDamage": 0
+    }
+  ]
+}

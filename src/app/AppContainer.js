@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
 import ConsumerHazard from './ConsumerHazard';
 import SolarPower from './SolarPower';
 
 const MAIN_TABS = [
+
   {
     key: 'product-safety',
     label: '제품안전',
@@ -49,6 +50,15 @@ const MAIN_TABS = [
 
 export default function AppContainer() {
   const [activeMainTab, setActiveMainTab] = useState('product-safety');
+
+  useEffect(() => {
+    // Record visit on initial load
+    fetch('/api/visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: window.location.pathname || '/' }),
+    }).catch((err) => console.error('Failed to log visit:', err));
+  }, []);
 
   return (
     <>
