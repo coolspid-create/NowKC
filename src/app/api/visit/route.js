@@ -28,6 +28,8 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
+    const startDateParam = searchParams.get('startDate'); // YYYY-MM-DD
+    const endDateParam = searchParams.get('endDate');     // YYYY-MM-DD
     const daysParam = parseInt(searchParams.get('days') || '7', 10);
     const days = isNaN(daysParam) ? 7 : daysParam;
 
@@ -77,11 +79,39 @@ export async function GET(request) {
     const pvGrowth = yesterdayPV === 0 ? (todayPV > 0 ? 100 : 0) : Math.round(((todayPV - yesterdayPV) / yesterdayPV) * 100);
     const uvGrowth = yesterdayUV === 0 ? (todayUV > 0 ? 100 : 0) : Math.round(((todayUV - yesterdayUV) / yesterdayUV) * 100);
 
-    // Daily Stats for requested days range
-    const startDate = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+    // Determine Range for Daily Stats
+    let rangeStart;
+    let rangeEnd;
+    let datesList = [];
+
+    if (startDateParam && endDateParam) {
+      rangeStart = new Date(`${startDateParam}T00:00:00.000+09:00`);
+      rangeEnd = new Date(`${endDateParam}T23:59:59.999+09:00`);
+
+      let curr = new Date(rangeStart.getTime());
+      while (curr.getTime() <= rangeEnd.getTime()) {
+        const currKst = new Date(curr.getTime() + kstOffset);
+        const dateStr = currKst.toISOString().split('T')[0];
+        datesList.push(dateStr);
+        curr = new Date(curr.getTime() + 24 * 60 * 60 * 1000);
+      }
+    } else {
+      rangeStart = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+      rangeEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+      for (let i = 0; i < days; i++) {
+        const d = new Date(rangeStart.getTime() + i * 24 * 60 * 60 * 1000);
+        const dKst = new Date(d.getTime() + kstOffset);
+        datesList.push(dKst.toISOString().split('T')[0]);
+      }
+    }
+
     const rangeLogs = await prisma.visitLog.findMany({
       where: {
-        createdAt: { gte: startDate },
+        createdAt: {
+          gte: rangeStart,
+          lte: rangeEnd,
+        },
       },
       select: { ip: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
@@ -89,13 +119,10 @@ export async function GET(request) {
 
     // Group logs by Date string (KST)
     const dailyMap = {};
-    for (let i = 0; i < days; i++) {
-      const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-      const dKst = new Date(d.getTime() + kstOffset);
-      const dateStr = dKst.toISOString().split('T')[0];
+    datesList.forEach(dateStr => {
       const monthDay = dateStr.slice(5); // MM-DD
       dailyMap[dateStr] = { date: monthDay, fullDate: dateStr, pv: 0, ips: new Set() };
-    }
+    });
 
     rangeLogs.forEach(log => {
       const logKst = new Date(new Date(log.createdAt).getTime() + kstOffset);

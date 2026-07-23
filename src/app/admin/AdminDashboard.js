@@ -13,8 +13,22 @@ import {
   CartesianGrid,
 } from 'recharts';
 
+const formatDate = (date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function AdminDashboard() {
-  const [days, setDays] = useState(7);
+  const today = new Date();
+  const defaultStart = new Date();
+  defaultStart.setDate(today.getDate() - 6);
+
+  const [startDate, setStartDate] = useState(formatDate(defaultStart));
+  const [endDate, setEndDate] = useState(formatDate(today));
+  const [activeQuick, setActiveQuick] = useState(7);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -32,11 +46,11 @@ export default function AdminDashboard() {
     recentLogs: [],
   });
 
-  const fetchStats = async (selectedDays = days) => {
+  const fetchStats = async (sDate = startDate, eDate = endDate) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/visit?days=${selectedDays}`, { cache: 'no-store' });
+      const res = await fetch(`/api/visit?startDate=${sDate}&endDate=${eDate}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success) {
         setData(json);
@@ -52,8 +66,29 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchStats(days);
-  }, [days]);
+    if (startDate && endDate) {
+      fetchStats(startDate, endDate);
+    }
+  }, [startDate, endDate]);
+
+  const handleQuickPeriod = (daysCount) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - (daysCount - 1));
+    setStartDate(formatDate(start));
+    setEndDate(formatDate(end));
+    setActiveQuick(daysCount);
+  };
+
+  const handleStartDateChange = (e) => {
+    setStartDate(e.target.value);
+    setActiveQuick(null);
+  };
+
+  const handleEndDateChange = (e) => {
+    setEndDate(e.target.value);
+    setActiveQuick(null);
+  };
 
   const { summary, dailyStats, hourlyStats, recentLogs } = data;
 
@@ -79,16 +114,35 @@ export default function AdminDashboard() {
             {[7, 14, 30].map((d) => (
               <button
                 key={d}
-                className={`filter-btn ${days === d ? 'active' : ''}`}
-                onClick={() => setDays(d)}
+                className={`filter-btn ${activeQuick === d ? 'active' : ''}`}
+                onClick={() => handleQuickPeriod(d)}
               >
                 최근 {d}일
               </button>
             ))}
           </div>
+
+          <div className="custom-date-range">
+            <input
+              type="date"
+              className="date-picker-input"
+              value={startDate}
+              onChange={handleStartDateChange}
+              max={endDate}
+            />
+            <span className="date-separator">~</span>
+            <input
+              type="date"
+              className="date-picker-input"
+              value={endDate}
+              onChange={handleEndDateChange}
+              min={startDate}
+            />
+          </div>
+
           <button
             className="refresh-btn"
-            onClick={() => fetchStats(days)}
+            onClick={() => fetchStats(startDate, endDate)}
             disabled={loading}
             title="새로고침"
           >
@@ -201,13 +255,13 @@ export default function AdminDashboard() {
         <div className="chart-card">
           <div className="chart-card-header">
             <h3>일별 접속 트렌드 (PV vs UV)</h3>
-            <span className="chart-subtitle">최근 {days}일간 일자별 페이지뷰 및 방문자 수</span>
+            <span className="chart-subtitle">조회 기간: {startDate} ~ {endDate} ({dailyStats.length}일간)</span>
           </div>
           <div className="chart-body">
             {loading ? (
               <div className="chart-placeholder">데이터를 로딩 중입니다...</div>
             ) : dailyStats.length === 0 ? (
-              <div className="chart-placeholder">기록된 접속 통계 데이터가 없습니다.</div>
+              <div className="chart-placeholder">선택된 기간에 기록된 접속 통계 데이터가 없습니다.</div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={dailyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
